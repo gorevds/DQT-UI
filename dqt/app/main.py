@@ -207,10 +207,20 @@ def _page_settings(sess):
     if sess.df is None or not sess.columns_meta:
         return _redirect_message("Configure columns first — go to /columns")
     s = sess.settings or {}
+    # Auto-infer time granularity from the chosen time column the first time
+    # this page is rendered. If the user previously picked something, keep it.
+    time_col = sess.columns_meta.get("time")
+    inferred_gran = infer_time_granularity(sess.df[time_col]) if time_col else "month"
     return html.Div([
         html.H2("3. Settings"),
-        html.P("Tune binning and time granularity. Defaults are reasonable for most datasets.",
-               style={"color": "#656d76"}),
+        html.P([
+            "Tune binning and time granularity. Defaults are reasonable for most datasets.",
+            html.Span(f" Time granularity auto-inferred from your data: ",
+                       style={"color": "#656d76"}),
+            html.Span(f"{inferred_gran}",
+                       style={"color": "#1a7f37", "fontWeight": 600}),
+            html.Span(".", style={"color": "#656d76"}),
+        ], style={"color": "#656d76"}),
         html.Div([
             html.Div([
                 html.Label("Binning method", style=_lbl()),
@@ -223,7 +233,7 @@ def _page_settings(sess):
             html.Div([
                 html.Label("Max bins", style=_lbl()),
                 dcc.Slider(id="opt-max-bins", min=2, max=10, step=1,
-                           value=s.get("max_bins", 5),
+                           value=s.get("max_bins", 3),
                            marks={i: str(i) for i in range(2, 11)}),
                 html.Label("Min samples per bin (fraction)", style=_lbl()),
                 dcc.Slider(id="opt-min-leaf", min=0.01, max=0.20, step=0.01,
@@ -235,7 +245,7 @@ def _page_settings(sess):
                 dcc.Dropdown(id="opt-granularity",
                              options=[{"label": v.capitalize(), "value": v}
                                       for v in ["auto", "as_is", "day", "week", "month", "quarter", "year"]],
-                             value=s.get("granularity", "auto"), clearable=False),
+                             value=s.get("granularity", inferred_gran), clearable=False),
                 html.Label("PSI reference", style=_lbl()),
                 dcc.Dropdown(id="opt-psi-ref",
                              options=[{"label": "First bucket", "value": "first"},
@@ -245,7 +255,7 @@ def _page_settings(sess):
                 dcc.Dropdown(id="opt-outlier",
                              options=[{"label": "IQR (Tukey)", "value": "iqr"},
                                       {"label": "Z-score", "value": "z"}],
-                             value=s.get("outlier_method", "iqr"), clearable=False),
+                             value=s.get("outlier_method", "z"), clearable=False),
             ], style={"flex": 1}),
         ], style={"display": "flex", "gap": "32px"}),
         html.Div([
