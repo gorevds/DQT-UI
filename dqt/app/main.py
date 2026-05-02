@@ -25,8 +25,14 @@ import plotly.graph_objects as go
 from dqt.app.io import column_summary, parse_upload
 from dqt.app.pipeline import run_analysis
 from dqt.app.store import STORE
+from dqt.core.autodetect import (
+    autodetect_features,
+    autodetect_target_column,
+    autodetect_time_column,
+)
 from dqt.core.target_utils import detect_target_kind
 from dqt.core.time_utils import infer_time_granularity
+from dqt.demo import make_demo_dataset
 from dqt.report.html_report import build_html_report
 
 
@@ -91,6 +97,15 @@ def _page_upload(sess):
                    "borderRadius": "6px", "textAlign": "center", "background": "#fff"},
             multiple=False, accept=".csv,.tsv,.txt,.parquet,.pq",
         ),
+        html.Div([
+            html.Span("Don't have data? ", style={"color": "#656d76", "fontSize": "13px"}),
+            html.Button("🎲 Load demo dataset", id="load-demo", n_clicks=0,
+                         style=_btn_style()),
+            html.Span(" — 5 000 rows × 33 features × 24 monthly buckets, drift / "
+                       "missingness / outliers built in.",
+                       style={"color": "#656d76", "fontSize": "12px",
+                              "marginLeft": "8px"}),
+        ], style={"marginTop": "12px", "display": "flex", "alignItems": "center"}),
         html.Div(id="upload-status", style={"marginTop": "16px"},
                   children=_upload_status_msg(sess) if has_data else ""),
         html.Div(_dataset_summary(sess) if has_data else "", id="dataset-summary"),
@@ -139,12 +154,23 @@ def _page_columns(sess):
         return _redirect_message("No data uploaded — go to /upload")
     cols = sess.df.columns.tolist()
     cm = sess.columns_meta or {}
-    target_default = cm.get("target")
-    time_default = cm.get("time")
+    # Pre-fill from previously chosen values, otherwise auto-detect.
+    time_default = cm.get("time") or autodetect_time_column(sess.df)
+    target_default = cm.get("target") or autodetect_target_column(
+        sess.df, exclude=[time_default] if time_default else None,
+    )
+    features_default = cm.get("features") or autodetect_features(
+        sess.df, time_default, target_default,
+    )
+    autodetected = bool(not cm and (time_default or target_default))
     return html.Div([
         html.H2("2. Choose columns"),
-        html.P("Pick the time, target and feature columns. Target type is auto-detected; "
-               "you can override it on the next page.", style={"color": "#656d76"}),
+        html.P([
+            "Pick the time, target and feature columns. Target type is auto-detected; "
+            "you can override it on the next page.",
+            html.Span(" Defaults below were auto-detected from your data — adjust if needed.",
+                       style={"color": "#1a7f37"}) if autodetected else "",
+        ], style={"color": "#656d76"}),
         html.Div([
             html.Div([
                 html.Label("Time column", style=_lbl()),
@@ -161,7 +187,7 @@ def _page_columns(sess):
         ], style={"display": "flex", "gap": "16px", "marginBottom": "16px"}),
         html.Label("Features", style=_lbl()),
         dcc.Dropdown(id="col-features", options=[{"label": c, "value": c} for c in cols],
-                     value=cm.get("features") or [], multi=True,
+                     value=features_default, multi=True,
                      placeholder="select feature columns to analyse"),
         html.Div([
             html.Button("Select all", id="select-all-features", style=_btn_style(),
@@ -312,6 +338,27 @@ def _register_callbacks(app: Dash):
             return html.Div(f"❌ {e}", style={"color": "#cf222e"}), no_update, no_update
         sess.df = df
         sess.filename = filename
+        sess.columns_meta = {}
+        sess.settings = {}
+        sess.report_cache = None
+        return _upload_status_msg(sess), _dataset_summary(sess), _upload_actions(True)
+
+    # ---- Load demo dataset ----------------------------------------------
+    @app.callback(
+        [Output("upload-status", "children", allow_duplicate=True),
+         Output("dataset-summary", "children", allow_duplicate=True),
+         Output("continue-row", "children", allow_duplicate=True)],
+        Input("load-demo", "n_clicks"),
+        State("sid", "data"),
+        prevent_initial_call=True,
+    )
+    def _on_demo(n_clicks, sid):
+        if not (n_clicks or 0):
+            return no_update, no_update, no_update
+        sess = STORE.get_or_create(sid)
+        df = make_demo_dataset()
+        sess.df = df
+        sess.filename = "demo_loans (synthetic)"
         sess.columns_meta = {}
         sess.settings = {}
         sess.report_cache = None

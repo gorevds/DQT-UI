@@ -1,3 +1,8 @@
+from dqt.core.autodetect import (
+    autodetect_features,
+    autodetect_target_column,
+    autodetect_time_column,
+)
 from dqt.core.target_utils import TargetKind, detect_target_kind
 from dqt.core.time_utils import bucket_time, infer_time_granularity
 from dqt.core.grouping import TreeBinner, fit_binner
@@ -31,4 +36,7 @@ __all__ = [
     "cardinality_over_time",
     "outlier_share_over_time",
     "type_consistency",
+    "autodetect_time_column",
+    "autodetect_target_column",
+    "autodetect_features",
 ]
