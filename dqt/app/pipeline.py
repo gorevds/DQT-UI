@@ -20,6 +20,7 @@ from dqt.core import (
 )
 from dqt.core.target_utils import to_binary_target
 from dqt.plots import (
+    plot_bin_shares_over_time,
     plot_categorical_share_over_time,
     plot_missingness_over_time,
     plot_numeric_distribution_over_time,
@@ -109,51 +110,49 @@ def run_analysis(
         kind = feature_kinds.get(feat) or _infer_kind(work[feat])
         is_numeric = kind == "numeric"
 
-        # Distribution over time
+        # Bins-related (the three shared-palette charts).
+        rate = bins_target_rate_over_time(
+            binned, binned_feature=feat, target_col=target_col,
+            time_col="__time__", target_kind=binner_target_kind,
+        )
+        fig_bin_shares = plot_bin_shares_over_time(rate, feat, "__time__")
+        fig_rate = plot_target_rate_per_bin_over_time(rate, feat, "__time__")
+        fig_summary = plot_bins_summary(rate, feat)
+
+        # Raw distribution over time (kept as auxiliary view).
         dist = feature_distribution_over_time(work, feat, "__time__", is_numeric=is_numeric)
         if is_numeric:
             fig_dist = plot_numeric_distribution_over_time(dist, feat, "__time__")
         else:
             fig_dist = plot_categorical_share_over_time(dist, feat, "__time__")
 
-        # Target rate per bin over time
-        rate = bins_target_rate_over_time(
-            binned, binned_feature=feat, target_col=target_col,
-            time_col="__time__", target_kind=binner_target_kind,
-        )
-        fig_rate = plot_target_rate_per_bin_over_time(rate, feat, "__time__")
-        fig_summary = plot_bins_summary(rate, feat)
-
-        # PSI (numeric only — categorical PSI uses bins, also useful but skipped in v1)
-        if is_numeric:
-            psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference)
-            fig_psi = plot_psi_over_time(psi_t, feat, "__time__")
-        else:
-            psi_t = pd.DataFrame(columns=["__time__", "psi"])
-            fig_psi = None
-
-        # Missingness + outliers
+        # Missingness (always present; outliers/PSI numeric-only).
         miss = missingness_over_time(work, feat, "__time__")
         fig_miss = plot_missingness_over_time(miss, feat, "__time__")
 
         if is_numeric:
+            psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference)
+            fig_psi = plot_psi_over_time(psi_t, feat, "__time__")
             outl = outlier_share_over_time(work, feat, "__time__", method=outlier_method)
             fig_outl = plot_outlier_share_over_time(outl, feat, "__time__")
-            type_t = type_consistency(work, feat, "__time__")
         else:
-            outl = pd.DataFrame()
+            psi_t = pd.DataFrame(columns=["__time__", "psi"])
+            fig_psi = None
             fig_outl = None
-            type_t = pd.DataFrame()
 
         summ = stability_summary(rate, psi_t if is_numeric else None)
         summary_rows.append({"feature": feat, "kind": kind, **summ,
                              "missing_share_max": float(miss["missing_share"].max()) if not miss.empty else 0.0})
 
-        figs = [fig_dist, fig_rate, fig_summary, fig_miss]
-        if fig_psi is not None:
-            figs.append(fig_psi)
-        if fig_outl is not None:
-            figs.append(fig_outl)
+        figs = {
+            "bin_shares": fig_bin_shares,
+            "rate_over_time": fig_rate,
+            "rate_summary": fig_summary,
+            "distribution": fig_dist,
+            "missingness": fig_miss,
+            "psi": fig_psi,
+            "outliers": fig_outl,
+        }
 
         feature_blocks.append({
             "feature": feat,
