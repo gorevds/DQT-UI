@@ -8,6 +8,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/dqt
 Environment="PATH=/opt/dqt/.venv/bin"
+Environment="HOME=/tmp"
 Environment="DQT_HOST=127.0.0.1"
 Environment="DQT_PORT=8050"
 ExecStart=/opt/dqt/.venv/bin/gunicorn \
