@@ -621,13 +621,19 @@ def _summary_chips(summary):
 
 
 def _build_html_data_url(result):
-    import base64, urllib.parse
+    import base64
+    # Same row layout as the on-screen report: 3 bin-charts on top,
+    # auxiliary checks in the middle, outliers full-width at the bottom.
+    order = ("bin_shares", "rate_over_time", "rate_summary",
+             "distribution", "missingness", "psi", "outliers")
     feature_blocks = []
     for blk in result["features"]:
+        figs = blk["figs"]
+        flat = [figs[k] for k in order if figs.get(k) is not None]
         feature_blocks.append({
             "feature": blk["feature"],
             "summary": blk["summary"],
-            "figs": [f for f in blk["figs"] if f is not None],
+            "figs": flat,
         })
     html_doc = build_html_report(
         title=result["meta"]["target_col"],
