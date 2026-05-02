@@ -554,15 +554,45 @@ def _render_report_view(result):
     )
     blocks = []
     for blk in result["features"]:
-        figs_grid = []
-        for fig in blk["figs"]:
-            figs_grid.append(html.Div(dcc.Graph(figure=fig, config={"displayModeBar": False}),
-                                       style={"flex": "1 1 48%", "minWidth": "480px"}))
+        figs = blk["figs"]
+        # Row 1 — three bin-related charts, equal width, same colour palette.
+        row1 = html.Div([
+            html.Div(dcc.Graph(figure=figs["bin_shares"], config={"displayModeBar": False}),
+                      style={"flex": "1 1 0", "minWidth": "0"}),
+            html.Div(dcc.Graph(figure=figs["rate_over_time"], config={"displayModeBar": False}),
+                      style={"flex": "1 1 0", "minWidth": "0"}),
+            html.Div(dcc.Graph(figure=figs["rate_summary"], config={"displayModeBar": False}),
+                      style={"flex": "1 1 0", "minWidth": "0"}),
+        ], style={"display": "flex", "gap": "8px", "marginBottom": "8px"})
+
+        # Row 2 — auxiliary checks: distribution, missingness, PSI (when present).
+        row2_items = [
+            html.Div(dcc.Graph(figure=figs["distribution"], config={"displayModeBar": False}),
+                      style={"flex": "1 1 0", "minWidth": "0"}),
+            html.Div(dcc.Graph(figure=figs["missingness"], config={"displayModeBar": False}),
+                      style={"flex": "1 1 0", "minWidth": "0"}),
+        ]
+        if figs.get("psi") is not None:
+            row2_items.append(html.Div(
+                dcc.Graph(figure=figs["psi"], config={"displayModeBar": False}),
+                style={"flex": "1 1 0", "minWidth": "0"},
+            ))
+        row2 = html.Div(row2_items, style={"display": "flex", "gap": "8px",
+                                             "marginBottom": "8px"})
+
+        # Row 3 — outliers, on its own line, full width.
+        rows = [row1, row2]
+        if figs.get("outliers") is not None:
+            rows.append(html.Div(
+                dcc.Graph(figure=figs["outliers"], config={"displayModeBar": False}),
+                style={"width": "100%"},
+            ))
+
         blocks.append(html.Div([
             html.H3(f"{blk['feature']}  ", style={"display": "inline"}),
             html.Span(f"({blk['kind']})", style={"color": "#656d76", "fontSize": "13px"}),
             html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px"}),
-            html.Div(figs_grid, style={"display": "flex", "flexWrap": "wrap", "gap": "8px"}),
+            *rows,
         ], style={"background": "#fff", "border": "1px solid #d0d7de", "borderRadius": "6px",
                    "padding": "16px", "marginBottom": "16px"}))
     return html.Div([
