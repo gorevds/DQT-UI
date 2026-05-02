@@ -104,6 +104,33 @@ def make_demo_dataset(n_rows: int = 5000, seed: int = 42) -> pd.DataFrame:
     ip_country = rng.choice(["RU", "BY", "KZ", "UZ", "AM", "other"],
                              size=n_rows, p=[0.78, 0.07, 0.06, 0.04, 0.03, 0.02])
 
+    # --- Extra fields with constant high missingness ---------------------
+    # phone_verification_score: ~18% NaN throughout (optional verification step)
+    phone_verification_score = pd.Series(
+        np.clip(rng.beta(a=4, b=2, size=n_rows), 0, 1).round(3)
+    ).astype(object)
+    phone_verification_score[rng.random(n_rows) < 0.18] = None
+
+    # risk_segment_legacy: ~60% NaN (legacy column being deprecated)
+    risk_segment_legacy = pd.Series(rng.choice(
+        ["A", "B", "C", "D", "E"], size=n_rows, p=[0.10, 0.25, 0.35, 0.20, 0.10],
+    )).astype(object)
+    risk_segment_legacy[rng.random(n_rows) < 0.60] = None
+
+    # --- Extra fields with heavy outliers --------------------------------
+    # delinquency_balance: log-normal with random 5% spike (10..30x)
+    delinquency_balance = np.exp(rng.normal(loc=8.0, scale=1.0, size=n_rows)).round(0)
+    spike_idx = rng.choice(n_rows, size=int(n_rows * 0.05), replace=False)
+    delinquency_balance[spike_idx] *= rng.uniform(10, 30, size=len(spike_idx))
+
+    # device_age_months: stable mass + 3% extreme tail (very old devices)
+    device_age_months = np.clip(rng.exponential(scale=14, size=n_rows), 0, 120).round(0)
+    tail_idx = rng.choice(n_rows, size=int(n_rows * 0.03), replace=False)
+    device_age_months[tail_idx] = rng.uniform(180, 360, size=len(tail_idx))
+    device_age_months = pd.Series(device_age_months).astype(object)
+    # Plus ~25% missing throughout
+    device_age_months[rng.random(n_rows) < 0.25] = None
+
     # --- Target: noisy binary with multi-feature signal -----------------
     region_other = (region == "Other").astype(float)
     logit = (
@@ -154,6 +181,10 @@ def make_demo_dataset(n_rows: int = 5000, seed: int = 42) -> pd.DataFrame:
         "channel": channel,
         "device_type": device_type,
         "ip_country": ip_country,
+        "phone_verification_score": phone_verification_score,
+        "risk_segment_legacy": risk_segment_legacy,
+        "delinquency_balance": delinquency_balance,
+        "device_age_months": device_age_months,
         "default_flag": default_flag,
     })
     return df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
