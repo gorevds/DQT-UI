@@ -600,37 +600,23 @@ def _render_report_view(result):
                        "padding": "6px 10px", "borderRadius": "4px"})
 
         sev = blk.get("severity", "green")
-        sev_style = _SEVERITY_STYLES[sev]
         card_children = [
             html.Div([
-                html.Span(sev_style["badge"], style={
-                    "padding": "2px 8px", "borderRadius": "10px",
-                    "fontSize": "11px", "fontWeight": 600,
-                    "background": sev_style["badge_bg"], "color": sev_style["badge_fg"],
-                    "marginRight": "10px", "verticalAlign": "middle",
-                }),
+                html.Span(_SEVERITY_LABEL[sev], className=f"severity-pill {sev}"),
                 html.Span(blk["feature"], style={"fontSize": "18px", "fontWeight": 600,
                                                    "verticalAlign": "middle"}),
                 html.Span(f"  ({blk['kind']})",
                            style={"color": "#656d76", "fontSize": "13px",
                                   "verticalAlign": "middle"}),
             ]),
-            html.Div(blk.get("verdict", ""), style={
-                "marginTop": "6px", "marginBottom": "10px",
-                "color": "#1f2328", "fontSize": "13px",
-            }),
-            html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px"}),
+            html.Div(blk.get("verdict", ""), className="verdict"),
+            html.Div(_summary_chips(blk["summary"])),
         ]
         if bins_block is not None:
             card_children.append(bins_block)
         card_children.extend(rows)
-        blocks.append(html.Div(card_children, style={
-            "background": "#fff",
-            "border": f"1px solid {sev_style['border']}",
-            "borderLeft": f"4px solid {sev_style['border']}",
-            "borderRadius": "6px",
-            "padding": "16px", "marginBottom": "16px",
-        }))
+        blocks.append(html.Div(card_children, id=f"feat-{blk['feature']}",
+                                className=f"feature-card {sev}"))
     return html.Div([
         html.Details([
             html.Summary("Overview — click to expand",
@@ -644,14 +630,7 @@ def _render_report_view(result):
     ])
 
 
-_SEVERITY_STYLES = {
-    "green":  {"badge": "● STABLE", "badge_bg": "#dafbe1", "badge_fg": "#1a7f37",
-                "border": "#d0d7de"},
-    "yellow": {"badge": "● WATCH",  "badge_bg": "#fff8c5", "badge_fg": "#9a6700",
-                "border": "#d4a72c"},
-    "red":    {"badge": "● DRIFT",  "badge_bg": "#ffebe9", "badge_fg": "#cf222e",
-                "border": "#cf222e"},
-}
+_SEVERITY_LABEL = {"green": "● STABLE", "yellow": "● WATCH", "red": "● DRIFT"}
 
 
 def _outlier_block(fig):
@@ -667,32 +646,26 @@ def _outlier_block(fig):
 def _summary_chips(summary):
     chips = []
     for k, v in summary.items():
-        color = "#f6f8fa"
+        cls = "chip"
         if isinstance(v, (int, float)) and not (v != v):  # not NaN
             if k.startswith("psi"):
                 if v > 0.25:
-                    color = "#ffebe9"
+                    cls = "chip danger"
                 elif v > 0.1:
-                    color = "#fff8c5"
+                    cls = "chip warn"
             elif k.startswith("stability"):
                 # Stability is inverse: 1 = perfect separation, 0.5 = overlap.
                 if v < 0.6:
-                    color = "#ffebe9"
+                    cls = "chip danger"
                 elif v < 0.8:
-                    color = "#fff8c5"
+                    cls = "chip warn"
             elif k == "missing_share_max":
                 if v > 0.5:
-                    color = "#ffebe9"
+                    cls = "chip danger"
                 elif v > 0.2:
-                    color = "#fff8c5"
-        if isinstance(v, (int, float)):
-            text = f"{k}: {round(v, 3)}"
-        else:
-            text = f"{k}: {v}"
-        chips.append(html.Span(text, style={
-            "background": color, "padding": "3px 8px", "borderRadius": "4px",
-            "marginRight": "8px", "fontSize": "12px",
-        }))
+                    cls = "chip warn"
+        text = f"{k}: {round(v, 3)}" if isinstance(v, (int, float)) else f"{k}: {v}"
+        chips.append(html.Span(text, className=cls))
     return chips
 
 
