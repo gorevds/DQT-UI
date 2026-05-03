@@ -22,11 +22,11 @@ def palette_for(bins: list) -> dict:
     return {b: PALETTE[i % len(PALETTE)] for i, b in enumerate(bins)}
 
 
-def plot_bin_shares_over_time(rate_df, time_col: str) -> go.Figure:
-    """One line per bin: share of that bin in each time bucket."""
+def plot_bin_shares_over_time(rate_df, time_col: str, psi_df=None) -> go.Figure:
+    """Bin shares per time bucket; optional PSI overlay on a secondary axis."""
     fig = go.Figure()
     if rate_df.empty:
-        fig.update_layout(title="no data")
+        fig.update_layout(title=_title("no data"))
         return fig
     bins = list(dict.fromkeys(rate_df["bin"].tolist()))
     colors = palette_for(bins)
@@ -45,13 +45,28 @@ def plot_bin_shares_over_time(rate_df, time_col: str) -> go.Figure:
             showlegend=False,
             hovertemplate="%{y:.1%}<extra>" + str(b) + "</extra>",
         ))
-    fig.update_layout(
-        title=_title("bin share"),
+
+    title = "bin share"
+    layout = dict(
+        title=_title(title),
         xaxis_title=None, yaxis_title="share",
         yaxis=dict(tickformat=".0%", range=[0, 1]),
-        hovermode="x unified", height=340, margin=dict(l=40, r=20, t=40, b=30),
+        hovermode="x unified", height=340, margin=dict(l=40, r=40, t=40, b=30),
         showlegend=False,
     )
+    if psi_df is not None and not psi_df.empty:
+        fig.add_trace(go.Scatter(
+            x=psi_df[time_col].astype(str), y=psi_df["psi"],
+            yaxis="y2", mode="lines+markers", name="PSI",
+            line=dict(color="rgb(60, 60, 60)", width=1.5, dash="dot"),
+            marker=dict(size=6, color="rgb(60, 60, 60)"),
+            showlegend=False,
+            hovertemplate="PSI: %{y:.3f}<extra></extra>",
+        ))
+        layout["title"] = _title("bin share + PSI")
+        layout["yaxis2"] = dict(title="PSI", overlaying="y", side="right",
+                                  tickformat=".3f", showgrid=False)
+    fig.update_layout(**layout)
     return fig
 
 

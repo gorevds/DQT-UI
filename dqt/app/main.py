@@ -547,7 +547,6 @@ def _render_report_view(result):
     blocks = []
     for blk in result["features"]:
         figs = blk["figs"]
-        # Row 1: bin charts share a colour palette — order is verdict → dynamics.
         row1 = html.Div([
             html.Div(dcc.Graph(figure=figs["rate_summary"], config={"displayModeBar": False}),
                       style={"flex": "1 1 0", "minWidth": "0"}),
@@ -557,26 +556,9 @@ def _render_report_view(result):
                       style={"flex": "1 1 0", "minWidth": "0"}),
         ], style={"display": "flex", "gap": "8px", "marginBottom": "8px"})
 
-        row2_items = [
-            html.Div(dcc.Graph(figure=figs["distribution"], config={"displayModeBar": False}),
-                      style={"flex": "1 1 0", "minWidth": "0"}),
-            html.Div(dcc.Graph(figure=figs["missingness"], config={"displayModeBar": False}),
-                      style={"flex": "1 1 0", "minWidth": "0"}),
-        ]
-        if figs.get("psi") is not None:
-            row2_items.append(html.Div(
-                dcc.Graph(figure=figs["psi"], config={"displayModeBar": False}),
-                style={"flex": "1 1 0", "minWidth": "0"},
-            ))
-        row2 = html.Div(row2_items, style={"display": "flex", "gap": "8px",
-                                             "marginBottom": "8px"})
-
-        rows = [row1, row2]
-        if figs.get("outliers") is not None:
-            rows.append(html.Div(
-                dcc.Graph(figure=figs["outliers"], config={"displayModeBar": False}),
-                style={"width": "100%"},
-            ))
+        rows = [row1]
+        if blk["kind"] == "numeric":
+            rows.append(_outlier_block(figs.get("outliers")))
 
         # Numeric bin labels are interval ranges and self-describing,
         # so we only need this disclosure for categorical bins.
@@ -619,6 +601,16 @@ def _render_report_view(result):
     ])
 
 
+def _outlier_block(fig):
+    if fig is not None:
+        return html.Div(dcc.Graph(figure=fig, config={"displayModeBar": False}),
+                         style={"width": "100%"})
+    return html.Div("No outliers detected.",
+                     style={"color": "#1a7f37", "fontSize": "13px",
+                            "padding": "8px 12px", "background": "#dafbe1",
+                            "borderRadius": "4px", "marginTop": "4px"})
+
+
 def _summary_chips(summary):
     chips = []
     for k, v in summary.items():
@@ -641,8 +633,7 @@ def _summary_chips(summary):
 
 def _build_html_data_url(result):
     # Mirror the on-screen layout in the exported HTML.
-    order = ("rate_summary", "rate_over_time", "bin_shares",
-             "distribution", "missingness", "psi", "outliers")
+    order = ("rate_summary", "rate_over_time", "bin_shares", "outliers")
     feature_blocks = []
     for blk in result["features"]:
         figs = blk["figs"]

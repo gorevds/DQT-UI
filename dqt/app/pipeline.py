@@ -10,22 +10,16 @@ from dqt.core import (
     bucket_time,
     detect_target_kind,
     fit_binner,
-    feature_distribution_over_time,
     psi_over_time,
     bins_target_rate_over_time,
     stability_summary,
     missingness_over_time,
     outlier_share_over_time,
-    type_consistency,
 )
 from dqt.core.target_utils import to_binary_target
 from dqt.plots import (
     plot_bin_shares_over_time,
-    plot_categorical_share_over_time,
-    plot_missingness_over_time,
-    plot_numeric_distribution_over_time,
     plot_outlier_share_over_time,
-    plot_psi_over_time,
     plot_target_rate_per_bin_over_time,
     plot_bins_summary,
 )
@@ -99,30 +93,26 @@ def run_analysis(
             binned, binned_feature=feat, target_col=target_col,
             time_col="__time__", target_kind=binner_target_kind,
         )
-        fig_bin_shares = plot_bin_shares_over_time(rate, "__time__")
-        fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__")
-        fig_summary = plot_bins_summary(rate)
-
-        dist = feature_distribution_over_time(work, feat, "__time__", is_numeric=is_numeric)
-        if is_numeric:
-            fig_dist = plot_numeric_distribution_over_time(dist, "__time__")
-        else:
-            fig_dist = plot_categorical_share_over_time(dist, "__time__")
-
-        miss = missingness_over_time(work, feat, "__time__")
-        fig_miss = plot_missingness_over_time(miss, "__time__")
 
         if is_numeric:
             psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference)
-            fig_psi = plot_psi_over_time(psi_t, "__time__")
             outl = outlier_share_over_time(work, feat, "__time__", method=outlier_method)
-            fig_outl = plot_outlier_share_over_time(outl, "__time__")
+            # When the global thresholds catch nothing, skip the chart entirely
+            # so the report can render a short text instead of an empty bar.
+            if not outl.empty and outl["outlier_share"].sum() > 0:
+                fig_outl = plot_outlier_share_over_time(outl, "__time__")
+            else:
+                fig_outl = None
         else:
-            psi_t = pd.DataFrame(columns=["__time__", "psi"])
-            fig_psi = None
+            psi_t = None
             fig_outl = None
 
-        summ = stability_summary(rate, psi_t if is_numeric else None)
+        fig_bin_shares = plot_bin_shares_over_time(rate, "__time__", psi_df=psi_t)
+        fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__")
+        fig_summary = plot_bins_summary(rate)
+
+        miss = missingness_over_time(work, feat, "__time__")
+        summ = stability_summary(rate, psi_t)
         summary_rows.append({"feature": feat, "kind": kind, **summ,
                              "missing_share_max": float(miss["missing_share"].max()) if not miss.empty else 0.0})
 
@@ -130,9 +120,6 @@ def run_analysis(
             "bin_shares": fig_bin_shares,
             "rate_over_time": fig_rate,
             "rate_summary": fig_summary,
-            "distribution": fig_dist,
-            "missingness": fig_miss,
-            "psi": fig_psi,
             "outliers": fig_outl,
         }
 

@@ -56,8 +56,7 @@ def test_pipeline_html_report(binary_df):
         feature_kinds={"x_num": "numeric"}, granularity="month",
     )
     blocks = []
-    order = ("rate_summary", "rate_over_time", "bin_shares",
-             "distribution", "missingness", "psi", "outliers")
+    order = ("rate_summary", "rate_over_time", "bin_shares", "outliers")
     for blk in result["features"]:
         figs_dict = blk["figs"]
         blocks.append({
