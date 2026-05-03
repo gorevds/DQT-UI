@@ -28,6 +28,9 @@ class BinningResult:
     edges: Optional[list] = None
     cat_map: Optional[dict] = None
     bin_labels: list = field(default_factory=list)
+    # Long-form description per bin label, surfaced in the UI's collapsible
+    # Bins subsection so chart legends/axes can stay short.
+    bin_descriptions: dict = field(default_factory=dict)
 
 
 class TreeBinner:
@@ -115,19 +118,26 @@ class TreeBinner:
             labels = ["(-inf, +inf)"]
             if x_num.isna().any():
                 labels = labels + [NAN_LABEL]
-            return BinningResult(col, "numeric", edges=[], bin_labels=labels)
+            descs = {lab: lab for lab in labels}
+            return BinningResult(col, "numeric", edges=[], bin_labels=labels,
+                                  bin_descriptions=descs)
         edges = self._edges_numeric(x_clean, y_clean)
         labels = _format_numeric_labels(edges)
         if x_num.isna().any():
             labels = labels + [NAN_LABEL]
-        return BinningResult(col, "numeric", edges=edges, bin_labels=labels)
+        # For numeric, label IS the description.
+        descs = {lab: lab for lab in labels}
+        return BinningResult(col, "numeric", edges=edges, bin_labels=labels,
+                              bin_descriptions=descs)
 
     def _fit_categorical(self, col: str, x: pd.Series, y: pd.Series) -> BinningResult:
         x_cat = x.astype(object).where(x.notna(), other=None)
         # Mean-target per category (works for binary and regression alike).
         valid = pd.DataFrame({"x": x_cat, "y": y}).dropna()
         if valid.empty:
-            return BinningResult(col, "categorical", cat_map={}, bin_labels=[NAN_LABEL] if x.isna().any() else [])
+            labels = [NAN_LABEL] if x.isna().any() else []
+            return BinningResult(col, "categorical", cat_map={}, bin_labels=labels,
+                                  bin_descriptions={l: "(no data)" for l in labels})
         means = valid.groupby("x")["y"].mean().sort_values()
         encoding = {cat: float(rank) for rank, cat in enumerate(means.index)}
         x_enc = valid["x"].map(encoding).to_numpy()
@@ -138,19 +148,18 @@ class TreeBinner:
             bin_idx = _bin_index(enc, edges)
             cat_map[cat] = int(bin_idx)
         n_bins = len(edges) + 1 if edges else 1
-        labels = []
+        labels: list = []
+        descriptions: dict = {}
         for b in range(n_bins):
             members = sorted([str(c) for c, idx in cat_map.items() if idx == b])
-            if members:
-                joined = ", ".join(members[:5])
-                if len(members) > 5:
-                    joined += f", ... (+{len(members) - 5})"
-                labels.append(f"[{b}] {joined}")
-            else:
-                labels.append(f"[{b}] (empty)")
+            label = f"bin {b}"
+            labels.append(label)
+            descriptions[label] = ", ".join(members) if members else "(empty)"
         if x.isna().any():
-            labels = labels + [NAN_LABEL]
-        return BinningResult(col, "categorical", cat_map=cat_map, bin_labels=labels)
+            labels.append(NAN_LABEL)
+            descriptions[NAN_LABEL] = "missing values"
+        return BinningResult(col, "categorical", cat_map=cat_map,
+                              bin_labels=labels, bin_descriptions=descriptions)
 
     def _edges_numeric(self, x: np.ndarray, y: np.ndarray) -> list:
         """Return sorted internal edges (no -inf/+inf)."""
