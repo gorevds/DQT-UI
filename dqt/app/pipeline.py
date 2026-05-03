@@ -115,26 +115,26 @@ def run_analysis(
             binned, binned_feature=feat, target_col=target_col,
             time_col="__time__", target_kind=binner_target_kind,
         )
-        fig_bin_shares = plot_bin_shares_over_time(rate, feat, "__time__")
-        fig_rate = plot_target_rate_per_bin_over_time(rate, feat, "__time__")
-        fig_summary = plot_bins_summary(rate, feat)
+        fig_bin_shares = plot_bin_shares_over_time(rate, "__time__")
+        fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__")
+        fig_summary = plot_bins_summary(rate)
 
         # Raw distribution over time (kept as auxiliary view).
         dist = feature_distribution_over_time(work, feat, "__time__", is_numeric=is_numeric)
         if is_numeric:
-            fig_dist = plot_numeric_distribution_over_time(dist, feat, "__time__")
+            fig_dist = plot_numeric_distribution_over_time(dist, "__time__")
         else:
-            fig_dist = plot_categorical_share_over_time(dist, feat, "__time__")
+            fig_dist = plot_categorical_share_over_time(dist, "__time__")
 
         # Missingness (always present; outliers/PSI numeric-only).
         miss = missingness_over_time(work, feat, "__time__")
-        fig_miss = plot_missingness_over_time(miss, feat, "__time__")
+        fig_miss = plot_missingness_over_time(miss, "__time__")
 
         if is_numeric:
             psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference)
-            fig_psi = plot_psi_over_time(psi_t, feat, "__time__")
+            fig_psi = plot_psi_over_time(psi_t, "__time__")
             outl = outlier_share_over_time(work, feat, "__time__", method=outlier_method)
-            fig_outl = plot_outlier_share_over_time(outl, feat, "__time__")
+            fig_outl = plot_outlier_share_over_time(outl, "__time__")
         else:
             psi_t = pd.DataFrame(columns=["__time__", "psi"])
             fig_psi = None

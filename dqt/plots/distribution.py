@@ -4,8 +4,8 @@ from __future__ import annotations
 import plotly.graph_objects as go
 
 
-def plot_numeric_distribution_over_time(dist_df, feature: str, time_col: str) -> go.Figure:
-    """Quantile bands (5/25/50/75/95) over time for a numeric feature."""
+def plot_numeric_distribution_over_time(dist_df, time_col: str) -> go.Figure:
+    """Quantile bands (5/25/50/75/95) over time."""
     fig = go.Figure()
     if dist_df.empty:
         fig.update_layout(title="no data")
@@ -32,7 +32,7 @@ def plot_numeric_distribution_over_time(dist_df, feature: str, time_col: str) ->
     return fig
 
 
-def plot_categorical_share_over_time(share_df, feature: str, time_col: str) -> go.Figure:
+def plot_categorical_share_over_time(share_df, time_col: str) -> go.Figure:
     """Stacked share of top-k categories per time bucket."""
     fig = go.Figure()
     if share_df.empty:

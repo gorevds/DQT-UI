@@ -22,8 +22,8 @@ def palette_for(bins: list) -> dict:
     return {b: PALETTE[i % len(PALETTE)] for i, b in enumerate(bins)}
 
 
-def plot_bin_shares_over_time(rate_df, feature: str, time_col: str) -> go.Figure:
-    """One line per bin: share of that bin in each time bucket (no fill)."""
+def plot_bin_shares_over_time(rate_df, time_col: str) -> go.Figure:
+    """One line per bin: share of that bin in each time bucket."""
     fig = go.Figure()
     if rate_df.empty:
         fig.update_layout(title="no data")
@@ -55,7 +55,7 @@ def plot_bin_shares_over_time(rate_df, feature: str, time_col: str) -> go.Figure
     return fig
 
 
-def plot_target_rate_per_bin_over_time(rate_df, feature: str, time_col: str) -> go.Figure:
+def plot_target_rate_per_bin_over_time(rate_df, time_col: str) -> go.Figure:
     """One line per bin: target rate over time with shaded ±SE bands."""
     fig = go.Figure()
     if rate_df.empty:
@@ -90,7 +90,7 @@ def plot_target_rate_per_bin_over_time(rate_df, feature: str, time_col: str) -> 
     return fig
 
 
-def plot_bins_summary(rate_df, feature: str) -> go.Figure:
+def plot_bins_summary(rate_df) -> go.Figure:
     """Bars = count per bin (per-bin colour); dotted line = target rate."""
     fig = go.Figure()
     if rate_df.empty:

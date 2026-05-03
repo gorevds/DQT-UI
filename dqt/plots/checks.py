@@ -4,7 +4,7 @@ from __future__ import annotations
 import plotly.graph_objects as go
 
 
-def plot_missingness_over_time(df, feature: str, time_col: str) -> go.Figure:
+def plot_missingness_over_time(df, time_col: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
         fig.update_layout(title="no data")
@@ -23,7 +23,7 @@ def plot_missingness_over_time(df, feature: str, time_col: str) -> go.Figure:
     return fig
 
 
-def plot_outlier_share_over_time(df, feature: str, time_col: str) -> go.Figure:
+def plot_outlier_share_over_time(df, time_col: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
         fig.update_layout(title="no data")
@@ -42,7 +42,7 @@ def plot_outlier_share_over_time(df, feature: str, time_col: str) -> go.Figure:
     return fig
 
 
-def plot_psi_over_time(df, feature: str, time_col: str) -> go.Figure:
+def plot_psi_over_time(df, time_col: str) -> go.Figure:
     fig = go.Figure()
     if df.empty:
         fig.update_layout(title="no data")
