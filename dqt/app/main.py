@@ -711,27 +711,34 @@ def _redirect_message(text):
 
 
 def _nav(active, sess):
-    items = [("upload", "1. Upload"), ("columns", "2. Columns"),
-             ("settings", "3. Settings"), ("report", "4. Report")]
+    items = [("upload", "Upload"), ("columns", "Columns"),
+             ("settings", "Settings"), ("report", "Report")]
     has_data = sess.df is not None
     has_cols = bool(sess.columns_meta)
     has_settings = bool(sess.settings)
-    enabled = {"upload": True, "columns": has_data, "settings": has_cols, "report": has_settings}
-    out = []
-    for key, label in items:
-        href = f"/{key}"
-        is_active = key == active
-        is_enabled = enabled[key]
-        style = {
-            "padding": "4px 10px", "borderRadius": "4px", "fontSize": "13px",
-            "color": "#1f6feb" if is_enabled else "#8c959f",
-            "fontWeight": 600 if is_active else 400,
-            "background": "#ddf4ff" if is_active else "transparent",
-            "textDecoration": "none",
-            "pointerEvents": "auto" if is_enabled else "none",
-        }
-        out.append(dcc.Link(label, href=href, style=style))
-    return out
+    enabled = {"upload": True, "columns": has_data, "settings": has_cols,
+               "report": has_settings}
+    # Steps before the active one are 'done', current is 'active', rest disabled.
+    keys_in_order = [k for k, _ in items]
+    active_idx = keys_in_order.index(active) if active in keys_in_order else -1
+
+    children = []
+    for i, (key, label) in enumerate(items):
+        if i > 0:
+            children.append(html.Span(className="sep"))
+        if i < active_idx:
+            cls = "step done"
+        elif i == active_idx:
+            cls = "step active"
+        elif enabled[key]:
+            cls = "step"
+        else:
+            cls = "step disabled"
+        children.append(dcc.Link(
+            [html.Span(str(i + 1), className="num"), html.Span(label)],
+            href=f"/{key}", className=cls,
+        ))
+    return html.Div(children, className="stepper")
 
 
 def _btn_style(primary=False):
