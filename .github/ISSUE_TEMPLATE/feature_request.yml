@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an idea, improvement, or a missing capability.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What you're trying to do and why the current tool falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How you'd like it to work — a sketch, an API, a screenshot from another tool, anything.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Links, prior art, mockups, references.

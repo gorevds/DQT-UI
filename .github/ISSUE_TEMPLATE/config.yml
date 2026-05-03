@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Live demo
+    url: https://dqt.gorev.space
+    about: Try DQT on a synthetic dataset before filing.
