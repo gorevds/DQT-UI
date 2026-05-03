@@ -118,7 +118,7 @@ def run_analysis(
         pairwise = (pairwise_bin_stability(rate, "__time__")
                     if binner_target_kind == TargetKind.BINARY else None)
         summ = stability_summary(rate, psi_t, pairwise)
-        summary_rows.append({"feature": feat, "kind": kind, **summ,
+        summary_rows.append({"feature": feat, "type": kind, **summ,
                              "missing_share_max": float(miss["missing_share"].max()) if not miss.empty else 0.0})
 
         figs = {
