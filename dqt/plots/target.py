@@ -81,11 +81,11 @@ def plot_bin_shares_over_time(rate_df, time_col: str, psi_df=None) -> go.Figure:
     return fig
 
 
-def plot_target_rate_per_bin_over_time(rate_df, time_col: str) -> go.Figure:
-    """One line per bin: target rate over time with shaded ±SE bands."""
+def plot_target_rate_per_bin_over_time(rate_df, time_col: str, stability_df=None) -> go.Figure:
+    """Target rate per bin over time; optional pairwise-stability overlay on a 2nd axis."""
     fig = go.Figure()
     if rate_df.empty:
-        fig.update_layout(title="no data")
+        fig.update_layout(title=_title("no data"))
         return fig
     bins = list(dict.fromkeys(rate_df["bin"].tolist()))
     colors = palette_for(bins)
@@ -106,13 +106,25 @@ def plot_target_rate_per_bin_over_time(rate_df, time_col: str) -> go.Figure:
                                  name=str(b), line=dict(color=color, width=2),
                                  showlegend=False,
                                  hovertemplate="%{y:.3f}<extra>" + str(b) + "</extra>"))
-    fig.update_layout(
+
+    layout = dict(
         title=_title("target rate per bin per date"),
         xaxis_title=None, yaxis_title="target rate",
         yaxis=dict(tickformat=".3f"),
-        hovermode="x unified", height=340, margin=dict(l=40, r=20, t=40, b=30),
+        hovermode="x unified", height=340, margin=dict(l=40, r=40, t=40, b=30),
         showlegend=False,
     )
+    if stability_df is not None and not stability_df.empty:
+        fig.add_trace(go.Scatter(
+            x=stability_df[time_col].astype(str), y=stability_df["stability"],
+            yaxis="y2", mode="lines", name="stability",
+            line=dict(color="rgb(140, 140, 140)", width=1.5),
+            showlegend=False,
+            hovertemplate="stability: %{y:.3f}<extra></extra>",
+        ))
+        layout["yaxis2"] = dict(title=None, overlaying="y", side="right",
+                                  range=[0, 1], tickformat=".3f", showgrid=False)
+    fig.update_layout(**layout)
     return fig
 
 

@@ -108,15 +108,16 @@ def run_analysis(
             psi_t = None
             fig_outl = None
 
-        fig_bin_shares = plot_bin_shares_over_time(rate, "__time__", psi_df=psi_t)
-        fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__")
-        fig_summary = plot_bins_summary(rate)
-
-        miss = missingness_over_time(work, feat, "__time__")
         # Pairwise z-score stability is meaningful only for binary targets
         # (the formula assumes two-proportion comparison).
         pairwise = (pairwise_bin_stability(rate, "__time__")
                     if binner_target_kind == TargetKind.BINARY else None)
+
+        fig_bin_shares = plot_bin_shares_over_time(rate, "__time__", psi_df=psi_t)
+        fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__", stability_df=pairwise)
+        fig_summary = plot_bins_summary(rate)
+
+        miss = missingness_over_time(work, feat, "__time__")
         summ = stability_summary(rate, psi_t, pairwise)
         summary_rows.append({"feature": feat, "type": kind, **summ,
                              "missing_share_max": float(miss["missing_share"].max()) if not miss.empty else 0.0})
