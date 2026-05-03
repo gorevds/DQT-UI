@@ -1,14 +1,7 @@
-"""DQT Dash application — single-file entry point.
+"""Dash application: 4-step DQ flow (upload → columns → settings → report).
 
-Pages:
-  /upload     – upload data (CSV / Parquet)
-  /columns    – pick time, target, features
-  /settings   – binning + granularity options
-  /report     – run analysis and view results
-
-Run:
-  python -m dqt.app.main           # dev server on 0.0.0.0:8050
-  gunicorn -w 1 -b :8050 dqt.app.main:server   # prod (one worker, see store.py)
+Run dev:  python -m dqt.app.main
+Run prod: gunicorn -w 1 -b :8050 dqt.app.main:server
 """
 from __future__ import annotations
 
@@ -50,7 +43,6 @@ def _layout():
         dcc.Store(id="sid", storage_type="session"),
         html.Div([
             html.Div([
-                # Click logo → reset session and go home.
                 html.Button(
                     "Data Quality Tool",
                     id="logo-reset", n_clicks=0,
@@ -162,7 +154,6 @@ def _page_columns(sess):
         return _redirect_message("No data uploaded — go to /upload")
     cols = sess.df.columns.tolist()
     cm = sess.columns_meta or {}
-    # Pre-fill from previously chosen values, otherwise auto-detect.
     time_default = cm.get("time") or autodetect_time_column(sess.df)
     target_default = cm.get("target") or autodetect_target_column(
         sess.df, exclude=[time_default] if time_default else None,
@@ -215,8 +206,6 @@ def _page_settings(sess):
     if sess.df is None or not sess.columns_meta:
         return _redirect_message("Configure columns first — go to /columns")
     s = sess.settings or {}
-    # Auto-infer time granularity from the chosen time column the first time
-    # this page is rendered. If the user previously picked something, keep it.
     time_col = sess.columns_meta.get("time")
     inferred_gran = infer_time_granularity(sess.df[time_col]) if time_col else "month"
     return html.Div([
@@ -382,14 +371,9 @@ def _register_callbacks(app: Dash):
         sess.report_cache = None
         return _upload_status_msg(sess), _dataset_summary(sess), _upload_actions(True)
 
-    # ---- Reset session (logo OR button) ----------------------------------
-    # Also re-renders the page in case the user is already on /upload — pure
-    # url update would be a no-op there.
-    #
-    # IMPORTANT: dynamically mounted components (reset-session appears only
-    # after upload) trigger their Input callbacks once on mount with n_clicks
-    # initialised to 0. We must reject such mount-fires by requiring the
-    # n_clicks counter for the actually-triggered button to be > 0.
+    # Re-renders the page so reset works even when already on /upload.
+    # n_clicks > 0 guard rejects the mount-fire that happens when the
+    # reset-session button is dynamically inserted by the upload callback.
     @app.callback(
         [Output("url", "pathname", allow_duplicate=True),
          Output("page", "children", allow_duplicate=True),
@@ -563,8 +547,7 @@ def _render_report_view(result):
     blocks = []
     for blk in result["features"]:
         figs = blk["figs"]
-        # Row 1 — three bin-related charts, equal width, same colour palette.
-        # Order: overall summary first (the "verdict"), then dynamics over time.
+        # Row 1: bin charts share a colour palette — order is verdict → dynamics.
         row1 = html.Div([
             html.Div(dcc.Graph(figure=figs["rate_summary"], config={"displayModeBar": False}),
                       style={"flex": "1 1 0", "minWidth": "0"}),
@@ -574,7 +557,6 @@ def _render_report_view(result):
                       style={"flex": "1 1 0", "minWidth": "0"}),
         ], style={"display": "flex", "gap": "8px", "marginBottom": "8px"})
 
-        # Row 2 — auxiliary checks: distribution, missingness, PSI (when present).
         row2_items = [
             html.Div(dcc.Graph(figure=figs["distribution"], config={"displayModeBar": False}),
                       style={"flex": "1 1 0", "minWidth": "0"}),
@@ -589,7 +571,6 @@ def _render_report_view(result):
         row2 = html.Div(row2_items, style={"display": "flex", "gap": "8px",
                                              "marginBottom": "8px"})
 
-        # Row 3 — outliers, on its own line, full width.
         rows = [row1, row2]
         if figs.get("outliers") is not None:
             rows.append(html.Div(
@@ -597,10 +578,8 @@ def _render_report_view(result):
                 style={"width": "100%"},
             ))
 
-        # Bins subsection — only for categorical features, where the labels
-        # ('bin 0', 'bin 1', ...) need to be expanded into the list of
-        # categories that fell into each bin. Numeric labels (e.g. (-inf, 1.234])
-        # are self-describing.
+        # Numeric bin labels are interval ranges and self-describing,
+        # so we only need this disclosure for categorical bins.
         bins_block = None
         if blk["kind"] == "categorical":
             descs = blk.get("bin_descriptions") or {}
@@ -661,8 +640,7 @@ def _summary_chips(summary):
 
 
 def _build_html_data_url(result):
-    # Same row layout as the on-screen report: 3 bin-charts on top,
-    # auxiliary checks in the middle, outliers full-width at the bottom.
+    # Mirror the on-screen layout in the exported HTML.
     order = ("rate_summary", "rate_over_time", "bin_shares",
              "distribution", "missingness", "psi", "outliers")
     feature_blocks = []
@@ -746,11 +724,11 @@ def _lbl():
 # ---------------------------------------------------------------------------
 
 app = create_app()
-server = app.server  # for gunicorn
+server = app.server  # WSGI entry point used by gunicorn
 
 
 def run_cli():
-    parser = argparse.ArgumentParser(description="DQT — Data Quality Tool")
+    parser = argparse.ArgumentParser(description="Data Quality Tool")
     parser.add_argument("--host", default=os.environ.get("DQT_HOST", "0.0.0.0"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("DQT_PORT", "8050")))
     parser.add_argument("--debug", action="store_true", default=os.environ.get("DQT_DEBUG") == "1")

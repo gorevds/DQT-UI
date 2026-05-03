@@ -54,25 +54,20 @@ def run_analysis(
     else:
         info_kind = info.kind
 
-    # Coerce binary target to {0,1}
     if info_kind == TargetKind.BINARY:
         if info.kind != TargetKind.BINARY:
             raise ValueError("Selected feature does not look binary")
         work[target_col] = to_binary_target(work[target_col], info)
 
-    # Time bucketing
     work["__time__"] = bucket_time(work[time_col], granularity=granularity)
-
-    # Drop rows with missing time/target — they break tree fitting
+    # Trees require both inputs present; drop only after bucketing so that
+    # invalid datetimes are also filtered out as NaN buckets.
     work = work[work["__time__"].notna() & work[target_col].notna()].copy()
-
     if work.empty:
         raise ValueError("No rows left after dropping NaN time/target")
 
-    # Multiclass: fall back to regression on the integer-encoded target.
-    # The encoded codes also become the downstream target so that mean/std
-    # aggregations work; bin charts will show "mean class code" rather than
-    # a class-share — see report for full multiclass support.
+    # Multiclass falls back to regression on integer-encoded codes — sufficient
+    # for stability charts; class-share visualisation is a future-extension.
     binner_target_kind = TargetKind.BINARY if info_kind == TargetKind.BINARY else TargetKind.REGRESSION
     target_for_tree = work[target_col]
     if info_kind == TargetKind.MULTICLASS:
@@ -100,7 +95,6 @@ def run_analysis(
         kind = feature_kinds.get(feat) or _infer_kind(work[feat])
         is_numeric = kind == "numeric"
 
-        # Bins-related (the three shared-palette charts).
         rate = bins_target_rate_over_time(
             binned, binned_feature=feat, target_col=target_col,
             time_col="__time__", target_kind=binner_target_kind,
@@ -109,14 +103,12 @@ def run_analysis(
         fig_rate = plot_target_rate_per_bin_over_time(rate, "__time__")
         fig_summary = plot_bins_summary(rate)
 
-        # Raw distribution over time (kept as auxiliary view).
         dist = feature_distribution_over_time(work, feat, "__time__", is_numeric=is_numeric)
         if is_numeric:
             fig_dist = plot_numeric_distribution_over_time(dist, "__time__")
         else:
             fig_dist = plot_categorical_share_over_time(dist, "__time__")
 
-        # Missingness (always present; outliers/PSI numeric-only).
         miss = missingness_over_time(work, feat, "__time__")
         fig_miss = plot_missingness_over_time(miss, "__time__")
 

@@ -21,8 +21,8 @@ class BinningResult:
     edges: Optional[list] = None
     cat_map: Optional[dict] = None
     bin_labels: list = field(default_factory=list)
-    # Long-form description per bin label, surfaced in the UI's collapsible
-    # Bins subsection so chart legends/axes can stay short.
+    # Long form per label — chart legends use bin_labels, the UI's
+    # collapsible Bins subsection uses bin_descriptions.
     bin_descriptions: dict = field(default_factory=dict)
 
 
@@ -92,44 +92,41 @@ class TreeBinner:
         x_num = pd.to_numeric(x, errors="coerce")
         mask = x_num.notna() & y.notna()
         x_clean, y_clean = x_num[mask].to_numpy(), y[mask].to_numpy()
+
+        # Constant feature → single all-encompassing bin; tree would degenerate.
         if len(x_clean) < 2 or len(np.unique(x_clean)) < 2:
-            labels = ["(-inf, +inf)"]
-            if x_num.isna().any():
-                labels = labels + [NAN_LABEL]
-            descs = {lab: lab for lab in labels}
+            labels = ["(-inf, +inf)"] + ([NAN_LABEL] if x_num.isna().any() else [])
             return BinningResult(col, "numeric", edges=[], bin_labels=labels,
-                                  bin_descriptions=descs)
+                                  bin_descriptions={l: l for l in labels})
+
         edges = self._edges_numeric(x_clean, y_clean)
         labels = _format_numeric_labels(edges)
         if x_num.isna().any():
-            labels = labels + [NAN_LABEL]
-        # For numeric, label IS the description.
-        descs = {lab: lab for lab in labels}
+            labels.append(NAN_LABEL)
         return BinningResult(col, "numeric", edges=edges, bin_labels=labels,
-                              bin_descriptions=descs)
+                              bin_descriptions={l: l for l in labels})
 
     def _fit_categorical(self, col: str, x: pd.Series, y: pd.Series) -> BinningResult:
         x_cat = x.astype(object).where(x.notna(), other=None)
-        # Mean-target per category (works for binary and regression alike).
         valid = pd.DataFrame({"x": x_cat, "y": y}).dropna()
         if valid.empty:
             labels = [NAN_LABEL] if x.isna().any() else []
             return BinningResult(col, "categorical", cat_map={}, bin_labels=labels,
                                   bin_descriptions={l: "(no data)" for l in labels})
+
+        # Encode each category by its mean target, then bin the encoding —
+        # that way the tree splits on a monotone real axis (works for both
+        # binary and regression targets, no special-casing needed).
         means = valid.groupby("x")["y"].mean().sort_values()
         encoding = {cat: float(rank) for rank, cat in enumerate(means.index)}
         x_enc = valid["x"].map(encoding).to_numpy()
         edges = self._edges_numeric(x_enc, valid["y"].to_numpy())
-        # Map every original category to its bin index.
-        cat_map: dict = {}
-        for cat, enc in encoding.items():
-            bin_idx = _bin_index(enc, edges)
-            cat_map[cat] = int(bin_idx)
+        cat_map = {cat: int(_bin_index(enc, edges)) for cat, enc in encoding.items()}
+
         n_bins = len(edges) + 1 if edges else 1
-        labels: list = []
-        descriptions: dict = {}
+        labels, descriptions = [], {}
         for b in range(n_bins):
-            members = sorted([str(c) for c, idx in cat_map.items() if idx == b])
+            members = sorted(str(c) for c, idx in cat_map.items() if idx == b)
             label = f"bin {b}"
             labels.append(label)
             descriptions[label] = ", ".join(members) if members else "(empty)"
@@ -140,14 +137,13 @@ class TreeBinner:
                               bin_labels=labels, bin_descriptions=descriptions)
 
     def _edges_numeric(self, x: np.ndarray, y: np.ndarray) -> list:
-        """Return sorted internal edges (no -inf/+inf)."""
+        """Return sorted internal split points (no -inf/+inf)."""
         if self.method == "manual":
             return list(self.manual_edges)
         if self.method == "quantile":
             qs = np.linspace(0, 1, self.max_bins + 1)[1:-1]
-            edges = sorted(set(np.quantile(x, qs).round(6).tolist()))
-            return edges
-        # tree
+            return sorted(set(np.quantile(x, qs).round(6).tolist()))
+
         if self.target_kind == TargetKind.BINARY:
             tree = DecisionTreeClassifier(
                 max_leaf_nodes=self.max_bins,
@@ -163,9 +159,8 @@ class TreeBinner:
             )
             y_fit = y
         tree.fit(x.reshape(-1, 1), y_fit)
-        thresholds = tree.tree_.threshold
-        features = tree.tree_.feature
-        internal = thresholds[features != -2]  # -2 == leaf
+        # sklearn marks leaves with feature == -2.
+        internal = tree.tree_.threshold[tree.tree_.feature != -2]
         return sorted(set(round(float(t), 6) for t in internal))
 
 
@@ -217,13 +212,11 @@ def _apply_categorical(x: pd.Series, res: BinningResult) -> pd.Series:
     nan_label = NAN_LABEL if (NAN_LABEL in res.bin_labels) else None
 
     def _map(v):
-        if pd.isna(v):
+        if pd.isna(v) or v not in res.cat_map:
+            # Unseen categories at transform-time fall into the NaN bucket.
             return nan_label
-        if v in res.cat_map:
-            idx = res.cat_map[v]
-            return labels_real[idx] if idx < len(labels_real) else None
-        # unseen category → NaN bin
-        return nan_label
+        idx = res.cat_map[v]
+        return labels_real[idx] if idx < len(labels_real) else None
 
     return x.map(_map)
 

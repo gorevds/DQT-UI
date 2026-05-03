@@ -24,8 +24,8 @@ def parse_upload(contents: str, filename: str) -> pd.DataFrame:
     if name.endswith(".csv") or name.endswith(".tsv") or name.endswith(".txt"):
         sep = "\t" if name.endswith(".tsv") else None
         try:
-            # engine="python" auto-detects separators when sep=None;
-            # low_memory is only valid with the C engine.
+            # engine='python' is required for sep=None auto-detection; it
+            # rejects low_memory, hence the branching.
             if sep is None:
                 return pd.read_csv(buf, sep=None, engine="python")
             return pd.read_csv(buf, sep=sep, low_memory=False)
