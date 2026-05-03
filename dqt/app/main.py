@@ -672,7 +672,17 @@ def _render_report_view(result, search: str = "", sort_by: str = "severity",
         card_children.extend(rows)
         blocks.append(html.Div(card_children, id=f"feat-{blk['feature']}",
                                 className=f"feature-card {sev}"))
-    return html.Div([
+    sidebar = html.Div([
+        html.Div(f"{len(visible_features)} of {len(result['features'])} features",
+                  style={"color": "#5b636e", "fontSize": "11px",
+                         "padding": "4px 8px 8px"}),
+        *[html.A([html.Span(className=f"dot {f.get('severity','green')}"),
+                  html.Span(f["feature"])],
+                  href=f"#feat-{f['feature']}")
+          for f in visible_features],
+    ], className="feature-sidebar")
+
+    body = html.Div([
         html.Details([
             html.Summary("Overview — click to expand",
                           style={"cursor": "pointer", "fontSize": "16px",
@@ -683,6 +693,8 @@ def _render_report_view(result, search: str = "", sort_by: str = "severity",
         html.H3("Per-feature details", style={"marginTop": "8px"}),
         *blocks,
     ])
+
+    return html.Div([sidebar, body], className="report-shell")
 
 
 _SEVERITY_LABEL = {"green": "● STABLE", "yellow": "● WATCH", "red": "● DRIFT"}
