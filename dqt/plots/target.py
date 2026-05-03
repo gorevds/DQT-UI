@@ -5,6 +5,7 @@ obvious which line/bar/area corresponds to which bin across the trio.
 """
 from __future__ import annotations
 
+import numpy as np
 import plotly.graph_objects as go
 
 
@@ -127,37 +128,11 @@ def plot_bins_summary(rate_df, feature: str) -> go.Figure:
 
 
 def _wmean(values, weights):
-    import numpy as np
     v = values.to_numpy(dtype=float)
     w = weights.to_numpy(dtype=float)
     if w.sum() == 0:
         return float("nan")
     return float(np.average(v, weights=w))
-
-
-def _rgba(rgb_str: str, alpha: float) -> str:
-    return rgb_str.replace("rgb(", "rgba(").replace(")", f", {alpha})")
-
-
-def _wmean(values, weights):
-    import numpy as np
-    v = values.to_numpy(dtype=float)
-    w = weights.to_numpy(dtype=float)
-    if w.sum() == 0:
-        return float("nan")
-    return float(np.average(v, weights=w))
-
-
-def _palette(n: int) -> list:
-    base = [
-        "rgb(31, 119, 180)", "rgb(255, 127, 14)", "rgb(44, 160, 44)",
-        "rgb(214, 39, 40)", "rgb(148, 103, 189)", "rgb(140, 86, 75)",
-        "rgb(227, 119, 194)", "rgb(127, 127, 127)", "rgb(188, 189, 34)",
-        "rgb(23, 190, 207)",
-    ]
-    if n <= len(base):
-        return base[:n]
-    return [base[i % len(base)] for i in range(n)]
 
 
 def _rgba(rgb_str: str, alpha: float) -> str:
