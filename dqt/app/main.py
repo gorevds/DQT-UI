@@ -594,9 +594,14 @@ def _render_report_view(result):
             "padding": "16px", "marginBottom": "16px",
         }))
     return html.Div([
-        html.H3("Overview"),
-        summary_table,
-        html.H3("Per-feature details", style={"marginTop": "24px"}),
+        html.Details([
+            html.Summary("Overview — click to expand",
+                          style={"cursor": "pointer", "fontSize": "16px",
+                                 "fontWeight": 600, "padding": "8px 0",
+                                 "color": "#1f2328"}),
+            html.Div(summary_table, style={"marginTop": "8px"}),
+        ], style={"marginBottom": "16px"}),
+        html.H3("Per-feature details", style={"marginTop": "8px"}),
         *blocks,
     ])
 
