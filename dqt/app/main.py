@@ -313,7 +313,14 @@ def _page_report(sess):
                    target="_blank"),
         ], style={"display": "flex", "gap": "8px", "marginBottom": "16px",
                    "alignItems": "center", "flexWrap": "wrap"}),
-        dcc.Loading(html.Div(id="report-content"), type="default"),
+        dcc.Loading(
+            html.Div(id="report-content"),
+            type="default",
+            # Reserve vertical space so the absolutely-positioned spinner
+            # lands inside the report area instead of over the toolbar.
+            parent_style={"minHeight": "320px", "position": "relative",
+                           "marginTop": "12px"},
+        ),
     ])
 
 
