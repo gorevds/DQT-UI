@@ -306,13 +306,7 @@ def _page_report(sess):
                                 "value": "name"},
                           ],
                           style={"width": "260px"}),
-            dcc.Checklist(id="report-only-flagged",
-                           options=[{"label": " Only WATCH/DRIFT", "value": "on"}],
-                           value=[],
-                           style={"fontSize": "13px"}),
             html.Div(style={"flex": "1"}),
-            html.Button("⟳ Recompute", id="report-recompute", style=_btn_style(),
-                         n_clicks=0),
             html.A(html.Button("⤓ Download HTML", style=_btn_style(),
                                 id="download-html-btn"),
                    id="download-html", download="dqt_report.html", href="",
@@ -520,18 +514,17 @@ def _register_callbacks(app: Dash):
     @app.callback(
         [Output("report-content", "children"), Output("report-status", "children"),
          Output("download-html", "href")],
-        [Input("url", "pathname"), Input("report-recompute", "n_clicks"),
-         Input("report-search", "value"), Input("report-sort", "value"),
-         Input("report-only-flagged", "value")],
+        [Input("url", "pathname"),
+         Input("report-search", "value"), Input("report-sort", "value")],
         State("sid", "data"),
     )
-    def _render_report(path, _n, search, sort_by, only_flagged, sid):
+    def _render_report(path, search, sort_by, sid):
         if path != "/report":
             return no_update, no_update, no_update
         sess = STORE.get(sid)
         if sess is None or sess.df is None or not sess.columns_meta:
             return html.Div("No data."), "", ""
-        if sess.report_cache is None or ctx.triggered_id == "report-recompute":
+        if sess.report_cache is None:
             try:
                 feature_kinds = _infer_feature_kinds(sess.df, sess.columns_meta["features"])
                 result = run_analysis(
@@ -557,7 +550,6 @@ def _register_callbacks(app: Dash):
         result = sess.report_cache
         view = _render_report_view(
             result, search=search or "", sort_by=sort_by or "stability_desc",
-            only_flagged=bool(only_flagged),
         )
         return view, _render_status(result), _build_html_data_url(result)
 
@@ -573,13 +565,11 @@ def _render_status(result):
 _SEVERITY_RANK = {"red": 0, "yellow": 1, "green": 2}
 
 
-def _filtered_features(features: list, search: str, sort_by: str, only_flagged: bool) -> list:
+def _filtered_features(features: list, search: str, sort_by: str) -> list:
     out = list(features)
     if search:
         s = search.lower()
         out = [f for f in out if s in f["feature"].lower()]
-    if only_flagged:
-        out = [f for f in out if f.get("severity") in ("red", "yellow")]
 
     def psi(f):  return f["summary"].get("psi_max")
     def stab(f): return f["summary"].get("stability_min")
@@ -603,8 +593,7 @@ def _filtered_features(features: list, search: str, sort_by: str, only_flagged: 
     return out
 
 
-def _render_report_view(result, search: str = "", sort_by: str = "stability_desc",
-                          only_flagged: bool = False):
+def _render_report_view(result, search: str = "", sort_by: str = "stability_desc"):
     summary_df = result["summary_table"]
     summary_table = dash_table.DataTable(
         data=summary_df.round(3).to_dict("records"),
@@ -637,7 +626,7 @@ def _render_report_view(result, search: str = "", sort_by: str = "stability_desc
               "backgroundColor": "#fff8c5"},
         ],
     )
-    visible_features = _filtered_features(result["features"], search, sort_by, only_flagged)
+    visible_features = _filtered_features(result["features"], search, sort_by)
     blocks = []
     for blk in visible_features:
         figs = blk["figs"]
