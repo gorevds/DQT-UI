@@ -9,7 +9,14 @@ A self-contained interactive UI for evaluating dataset quality through:
 
 Designed to work on **any tabular dataset** with a time column, a target column, and one or more feature columns. Supports binary, multiclass, and regression targets — useful for product analytics, marketing attribution, fraud, scoring, A/B follow-ups, sensor / IoT data, anywhere you need to spot whether features or outcomes drift over time.
 
-![nav](https://img.shields.io/badge/python-3.9%2B-blue) ![dash](https://img.shields.io/badge/dash-2.x-1f6feb) ![license](https://img.shields.io/badge/license-MIT-green)
+[![tests](https://github.com/gorevds/dqt-ui/actions/workflows/test.yml/badge.svg)](https://github.com/gorevds/dqt-ui/actions/workflows/test.yml)
+[![lint](https://github.com/gorevds/dqt-ui/actions/workflows/lint.yml/badge.svg)](https://github.com/gorevds/dqt-ui/actions/workflows/lint.yml)
+[![python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![dash](https://img.shields.io/badge/dash-2.x-1f6feb)](https://dash.plotly.com/)
+[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![demo](https://img.shields.io/badge/demo-dqt.gorev.space-1f6feb)](https://dqt.gorev.space)
+
+![DQT report screenshot](docs/screenshot-report.png)
 
 ---
 
