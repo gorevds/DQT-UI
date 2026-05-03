@@ -29,14 +29,31 @@ def psi(actual: np.ndarray, expected: np.ndarray, bins: int = 10, eps: float = 1
     return float(np.sum((a_pct - e_pct) * np.log(a_pct / e_pct)))
 
 
+def psi_categorical(actual, expected, eps: float = 1e-4) -> float:
+    """PSI for categorical samples — categories take the place of histogram bins."""
+    actual = pd.Series(actual).dropna()
+    expected = pd.Series(expected).dropna()
+    if actual.empty or expected.empty:
+        return float("nan")
+    cats = sorted(set(actual.unique()) | set(expected.unique()), key=str)
+    a_share = actual.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
+    e_share = expected.value_counts(normalize=True).reindex(cats, fill_value=0).to_numpy()
+    a_share = np.where(a_share == 0, eps, a_share)
+    e_share = np.where(e_share == 0, eps, e_share)
+    return float(np.sum((a_share - e_share) * np.log(a_share / e_share)))
+
+
 def psi_over_time(
     df: pd.DataFrame,
     feature: str,
     time_col: str,
     reference: str = "first",
     bins: int = 10,
+    is_numeric: Optional[bool] = None,
 ) -> pd.DataFrame:
     """PSI per time bucket vs `reference` ('first' | 'previous' | <bucket-label>)."""
+    if is_numeric is None:
+        is_numeric = pd.api.types.is_numeric_dtype(df[feature]) and not pd.api.types.is_bool_dtype(df[feature])
     df = df[[feature, time_col]].dropna()
     buckets = sorted(df[time_col].dropna().unique().tolist())
     if not buckets:
@@ -49,15 +66,19 @@ def psi_over_time(
         ref_label = reference
     rows = []
     for i, b in enumerate(buckets):
-        actual = df.loc[df[time_col] == b, feature].to_numpy()
+        actual = df.loc[df[time_col] == b, feature]
         if reference == "previous":
             if i == 0:
                 rows.append({time_col: str(b), "psi": 0.0})
                 continue
-            expected = df.loc[df[time_col] == buckets[i - 1], feature].to_numpy()
+            expected = df.loc[df[time_col] == buckets[i - 1], feature]
         else:
-            expected = df.loc[df[time_col] == ref_label, feature].to_numpy()
-        rows.append({time_col: str(b), "psi": psi(actual, expected, bins=bins)})
+            expected = df.loc[df[time_col] == ref_label, feature]
+        if is_numeric:
+            v = psi(actual.to_numpy(), expected.to_numpy(), bins=bins)
+        else:
+            v = psi_categorical(actual, expected)
+        rows.append({time_col: str(b), "psi": v})
     return pd.DataFrame(rows)
 
 

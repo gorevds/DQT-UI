@@ -95,8 +95,9 @@ def run_analysis(
             time_col="__time__", target_kind=binner_target_kind,
         )
 
+        psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference,
+                                is_numeric=is_numeric)
         if is_numeric:
-            psi_t = psi_over_time(work, feat, "__time__", reference=psi_reference)
             outl = outlier_share_over_time(work, feat, "__time__", method=outlier_method)
             # When the global thresholds catch nothing, skip the chart entirely
             # so the report can render a short text instead of an empty bar.
@@ -105,7 +106,6 @@ def run_analysis(
             else:
                 fig_outl = None
         else:
-            psi_t = None
             fig_outl = None
 
         # Pairwise z-score stability is meaningful only for binary targets

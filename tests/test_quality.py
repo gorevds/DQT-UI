@@ -3,6 +3,7 @@ import pandas as pd
 
 from dqt.core.quality import (
     psi,
+    psi_categorical,
     psi_over_time,
     bins_target_rate_over_time,
     feature_distribution_over_time,
@@ -28,6 +29,31 @@ def test_psi_positive_for_shifted():
 
 def test_psi_handles_empty():
     assert np.isnan(psi(np.array([]), np.array([1.0])))
+
+
+def test_psi_categorical_zero_for_identical():
+    s = pd.Series(["A", "B", "A", "C", "B"])
+    assert psi_categorical(s, s) < 1e-9
+
+
+def test_psi_categorical_positive_for_drift():
+    a = pd.Series(["A"] * 100 + ["B"] * 50)
+    b = pd.Series(["A"] * 50 + ["B"] * 100)  # share flipped
+    assert psi_categorical(a, b) > 0.1
+
+
+def test_psi_categorical_handles_unseen():
+    a = pd.Series(["A", "A", "B", "B"])
+    b = pd.Series(["A", "C", "C", "D"])
+    assert psi_categorical(a, b) > 0  # large drift
+
+
+def test_psi_over_time_handles_categorical(binary_df):
+    df = binary_df.copy()
+    df["m"] = df["date"].dt.to_period("M").astype(str)
+    out = psi_over_time(df, "x_cat", "m", reference="first", is_numeric=False)
+    assert len(out) == df["m"].nunique()
+    assert out["psi"].iloc[0] == 0.0  # first vs first
 
 
 def test_psi_over_time_first_reference(binary_df):
