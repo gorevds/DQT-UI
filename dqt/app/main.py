@@ -286,16 +286,26 @@ def _page_report(sess):
                               "border": "1px solid var(--border-2)",
                               "borderRadius": "var(--radius-sm)",
                               "fontSize": "13px"}),
+            html.Span("Sort by:", style={"color": "#5b636e", "fontSize": "13px"}),
             dcc.Dropdown(id="report-sort", clearable=False,
-                          value="severity",
+                          value="stability_desc",
                           options=[
-                              {"label": "Sort: severity", "value": "severity"},
-                              {"label": "Sort: PSI peak ↓", "value": "psi"},
-                              {"label": "Sort: stability ↑", "value": "stability"},
-                              {"label": "Sort: missing share ↓", "value": "missing"},
-                              {"label": "Sort: name", "value": "name"},
+                              {"label": "stability ↓ (most stable first)",
+                                "value": "stability_desc"},
+                              {"label": "stability ↑ (least stable first)",
+                                "value": "stability_asc"},
+                              {"label": "PSI peak ↓ (most drift first)",
+                                "value": "psi_desc"},
+                              {"label": "PSI peak ↑ (least drift first)",
+                                "value": "psi_asc"},
+                              {"label": "missing share ↓",
+                                "value": "missing"},
+                              {"label": "severity (red first)",
+                                "value": "severity"},
+                              {"label": "name (A → Z)",
+                                "value": "name"},
                           ],
-                          style={"width": "200px"}),
+                          style={"width": "260px"}),
             dcc.Checklist(id="report-only-flagged",
                            options=[{"label": " Only WATCH/DRIFT", "value": "on"}],
                            value=[],
@@ -546,7 +556,7 @@ def _register_callbacks(app: Dash):
 
         result = sess.report_cache
         view = _render_report_view(
-            result, search=search or "", sort_by=sort_by or "severity",
+            result, search=search or "", sort_by=sort_by or "stability_desc",
             only_flagged=bool(only_flagged),
         )
         return view, _render_status(result), _build_html_data_url(result)
@@ -570,20 +580,30 @@ def _filtered_features(features: list, search: str, sort_by: str, only_flagged: 
         out = [f for f in out if s in f["feature"].lower()]
     if only_flagged:
         out = [f for f in out if f.get("severity") in ("red", "yellow")]
-    if sort_by == "severity":
-        out.sort(key=lambda f: (_SEVERITY_RANK.get(f.get("severity"), 3), f["feature"]))
-    elif sort_by == "psi":
-        out.sort(key=lambda f: -(f["summary"].get("psi_max") or float("-inf")))
-    elif sort_by == "stability":
-        out.sort(key=lambda f: (f["summary"].get("stability_min") or float("inf")))
+
+    def psi(f):  return f["summary"].get("psi_max")
+    def stab(f): return f["summary"].get("stability_min")
+    def miss(f): return f["summary"].get("missing_share_max") or 0.0
+
+    if sort_by == "stability_desc":
+        # Most stable first: NaN to the end, then high → low.
+        out.sort(key=lambda f: (stab(f) is None, -(stab(f) or 0.0), f["feature"]))
+    elif sort_by == "stability_asc":
+        out.sort(key=lambda f: (stab(f) is None, (stab(f) or 1.0), f["feature"]))
+    elif sort_by == "psi_desc":
+        out.sort(key=lambda f: (psi(f) is None, -(psi(f) or 0.0), f["feature"]))
+    elif sort_by == "psi_asc":
+        out.sort(key=lambda f: (psi(f) is None, (psi(f) or float("inf")), f["feature"]))
     elif sort_by == "missing":
-        out.sort(key=lambda f: -(f["summary"].get("missing_share_max") or 0.0))
+        out.sort(key=lambda f: -miss(f))
+    elif sort_by == "severity":
+        out.sort(key=lambda f: (_SEVERITY_RANK.get(f.get("severity"), 3), f["feature"]))
     elif sort_by == "name":
         out.sort(key=lambda f: f["feature"])
     return out
 
 
-def _render_report_view(result, search: str = "", sort_by: str = "severity",
+def _render_report_view(result, search: str = "", sort_by: str = "stability_desc",
                           only_flagged: bool = False):
     summary_df = result["summary_table"]
     summary_table = dash_table.DataTable(
