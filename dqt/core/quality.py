@@ -166,20 +166,17 @@ def stability_summary(
     psi_table: Optional[pd.DataFrame] = None,
     pairwise_stability: Optional[pd.DataFrame] = None,
 ) -> dict:
-    """One-row summary per feature: rate_std/range, psi_mean/max, stability_mean/min/std."""
+    """One-row summary per feature: rate_range, psi_mean/max, stability_mean/min."""
     summary: dict = {}
     if not bins_rate.empty:
-        per_bin = bins_rate.groupby("bin")["rate"].agg(["std", "min", "max"]).fillna(0.0)
-        summary["rate_std"] = float(per_bin["std"].mean())
+        per_bin = bins_rate.groupby("bin")["rate"].agg(["min", "max"]).fillna(0.0)
         summary["rate_range"] = float((per_bin["max"] - per_bin["min"]).mean())
     else:
-        summary["rate_std"] = float("nan")
         summary["rate_range"] = float("nan")
     if pairwise_stability is not None and not pairwise_stability.empty:
         s = pairwise_stability["stability"]
         summary["stability_mean"] = float(s.mean())
         summary["stability_min"] = float(s.min())
-        summary["stability_std"] = float(s.std() if len(s) > 1 else 0.0)
     if psi_table is not None and not psi_table.empty:
         summary["psi_mean"] = float(psi_table["psi"].mean())
         summary["psi_max"] = float(psi_table["psi"].max())

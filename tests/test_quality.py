@@ -84,7 +84,7 @@ def test_stability_summary():
     })
     psi_df = pd.DataFrame({"m": ["1", "2"], "psi": [0.0, 0.05]})
     summary = stability_summary(rate_df, psi_df)
-    assert "rate_std" in summary
+    assert "rate_range" in summary
     assert "psi_mean" in summary
     assert summary["psi_max"] == 0.05
 
@@ -135,5 +135,4 @@ def test_stability_summary_includes_pairwise():
     summary = stability_summary(rate_df, psi_table=None, pairwise_stability=pw)
     assert "stability_mean" in summary
     assert "stability_min" in summary
-    assert "stability_std" in summary
     assert summary["stability_mean"] > 0.99
