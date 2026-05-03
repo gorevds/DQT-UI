@@ -277,14 +277,38 @@ def _page_report(sess):
     if sess.df is None or not sess.columns_meta:
         return _redirect_message("Configure data first — go to /upload")
     return html.Div([
-        html.H2("4. Report"),
+        html.H2("Report"),
         html.Div(id="report-status", style={"color": "#656d76"}),
         html.Div([
-            html.Button("⟳ Recompute", id="report-recompute", style=_btn_style(), n_clicks=0),
-            html.A(html.Button("⤓ Download HTML report", style=_btn_style(),
+            dcc.Input(id="report-search", type="text", debounce=True,
+                       placeholder="Search feature…",
+                       style={"flex": "1 1 200px", "padding": "6px 10px",
+                              "border": "1px solid var(--border-2)",
+                              "borderRadius": "var(--radius-sm)",
+                              "fontSize": "13px"}),
+            dcc.Dropdown(id="report-sort", clearable=False,
+                          value="severity",
+                          options=[
+                              {"label": "Sort: severity", "value": "severity"},
+                              {"label": "Sort: PSI peak ↓", "value": "psi"},
+                              {"label": "Sort: stability ↑", "value": "stability"},
+                              {"label": "Sort: missing share ↓", "value": "missing"},
+                              {"label": "Sort: name", "value": "name"},
+                          ],
+                          style={"width": "200px"}),
+            dcc.Checklist(id="report-only-flagged",
+                           options=[{"label": " Only WATCH/DRIFT", "value": "on"}],
+                           value=[],
+                           style={"fontSize": "13px"}),
+            html.Div(style={"flex": "1"}),
+            html.Button("⟳ Recompute", id="report-recompute", style=_btn_style(),
+                         n_clicks=0),
+            html.A(html.Button("⤓ Download HTML", style=_btn_style(),
                                 id="download-html-btn"),
-                   id="download-html", download="dqt_report.html", href="", target="_blank"),
-        ], style={"display": "flex", "gap": "8px", "marginBottom": "16px"}),
+                   id="download-html", download="dqt_report.html", href="",
+                   target="_blank"),
+        ], style={"display": "flex", "gap": "8px", "marginBottom": "16px",
+                   "alignItems": "center", "flexWrap": "wrap"}),
         dcc.Loading(html.Div(id="report-content"), type="default"),
     ])
 
@@ -486,10 +510,12 @@ def _register_callbacks(app: Dash):
     @app.callback(
         [Output("report-content", "children"), Output("report-status", "children"),
          Output("download-html", "href")],
-        [Input("url", "pathname"), Input("report-recompute", "n_clicks")],
+        [Input("url", "pathname"), Input("report-recompute", "n_clicks"),
+         Input("report-search", "value"), Input("report-sort", "value"),
+         Input("report-only-flagged", "value")],
         State("sid", "data"),
     )
-    def _render_report(path, _n, sid):
+    def _render_report(path, _n, search, sort_by, only_flagged, sid):
         if path != "/report":
             return no_update, no_update, no_update
         sess = STORE.get(sid)
@@ -519,7 +545,11 @@ def _register_callbacks(app: Dash):
                                 style={"color": "#cf222e"}), "", ""
 
         result = sess.report_cache
-        return _render_report_view(result), _render_status(result), _build_html_data_url(result)
+        view = _render_report_view(
+            result, search=search or "", sort_by=sort_by or "severity",
+            only_flagged=bool(only_flagged),
+        )
+        return view, _render_status(result), _build_html_data_url(result)
 
 
 def _render_status(result):
@@ -530,7 +560,31 @@ def _render_status(result):
     ], style={"marginBottom": "12px"})
 
 
-def _render_report_view(result):
+_SEVERITY_RANK = {"red": 0, "yellow": 1, "green": 2}
+
+
+def _filtered_features(features: list, search: str, sort_by: str, only_flagged: bool) -> list:
+    out = list(features)
+    if search:
+        s = search.lower()
+        out = [f for f in out if s in f["feature"].lower()]
+    if only_flagged:
+        out = [f for f in out if f.get("severity") in ("red", "yellow")]
+    if sort_by == "severity":
+        out.sort(key=lambda f: (_SEVERITY_RANK.get(f.get("severity"), 3), f["feature"]))
+    elif sort_by == "psi":
+        out.sort(key=lambda f: -(f["summary"].get("psi_max") or float("-inf")))
+    elif sort_by == "stability":
+        out.sort(key=lambda f: (f["summary"].get("stability_min") or float("inf")))
+    elif sort_by == "missing":
+        out.sort(key=lambda f: -(f["summary"].get("missing_share_max") or 0.0))
+    elif sort_by == "name":
+        out.sort(key=lambda f: f["feature"])
+    return out
+
+
+def _render_report_view(result, search: str = "", sort_by: str = "severity",
+                          only_flagged: bool = False):
     summary_df = result["summary_table"]
     summary_table = dash_table.DataTable(
         data=summary_df.round(3).to_dict("records"),
@@ -563,8 +617,9 @@ def _render_report_view(result):
               "backgroundColor": "#fff8c5"},
         ],
     )
+    visible_features = _filtered_features(result["features"], search, sort_by, only_flagged)
     blocks = []
-    for blk in result["features"]:
+    for blk in visible_features:
         figs = blk["figs"]
         row1 = html.Div([
             html.Div(dcc.Graph(figure=figs["rate_summary"], config={"displayModeBar": False}),
