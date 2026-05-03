@@ -615,8 +615,11 @@ def _render_report_view(result):
                            style={"color": "#656d76", "fontSize": "13px",
                                   "verticalAlign": "middle"}),
             ]),
-            html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px",
-                                                              "marginTop": "8px"}),
+            html.Div(blk.get("verdict", ""), style={
+                "marginTop": "6px", "marginBottom": "10px",
+                "color": "#1f2328", "fontSize": "13px",
+            }),
+            html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px"}),
         ]
         if bins_block is not None:
             card_children.append(bins_block)

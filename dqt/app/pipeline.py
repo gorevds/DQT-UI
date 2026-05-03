@@ -130,6 +130,7 @@ def run_analysis(
         }
 
         binner_result = binner.result(feat)
+        miss_max = float(miss["missing_share"].max()) if not miss.empty else 0.0
         feature_blocks.append({
             "feature": feat,
             "kind": kind,
@@ -137,6 +138,7 @@ def run_analysis(
             "figs": figs,
             "bin_descriptions": binner_result.bin_descriptions,
             "severity": _severity_for(summ, miss),
+            "verdict": _verdict_for(summ, miss_max, fig_outl is not None),
         })
 
     return {
@@ -156,6 +158,35 @@ def _infer_kind(s: pd.Series) -> str:
     if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
         return "numeric"
     return "categorical"
+
+
+def _verdict_for(summary: dict, miss_max: float, has_outliers: bool) -> str:
+    """Short human-readable summary line per feature."""
+    parts = []
+    psi_max = summary.get("psi_max")
+    psi_mean = summary.get("psi_mean")
+    if isinstance(psi_max, (int, float)) and psi_max == psi_max:
+        if psi_max > 0.25:
+            parts.append(f"large drift (PSI peak {psi_max:.2f})")
+        elif psi_max > 0.1:
+            parts.append(f"some drift (PSI peak {psi_max:.2f})")
+        else:
+            parts.append(f"distribution stable (PSI peak {psi_max:.2f})")
+    stability_min = summary.get("stability_min")
+    if isinstance(stability_min, (int, float)) and stability_min == stability_min:
+        if stability_min < 0.6:
+            parts.append(f"bins overlap in worst period ({stability_min:.2f})")
+        elif stability_min < 0.8:
+            parts.append(f"bins narrow in worst period ({stability_min:.2f})")
+        else:
+            parts.append("bins well-separated across periods")
+    if miss_max > 0.5:
+        parts.append(f"high missingness up to {miss_max:.0%}")
+    elif miss_max > 0.2:
+        parts.append(f"missingness up to {miss_max:.0%}")
+    if has_outliers:
+        parts.append("outliers detected")
+    return ". ".join(p[0].upper() + p[1:] for p in parts) + ("." if parts else "")
 
 
 def _severity_for(summary: dict, miss: pd.DataFrame) -> str:
