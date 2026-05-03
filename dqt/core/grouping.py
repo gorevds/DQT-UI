@@ -219,24 +219,18 @@ def _bin_index(value: float, edges: list) -> int:
 def _apply_numeric(x: pd.Series, res: BinningResult) -> pd.Series:
     x_num = pd.to_numeric(x, errors="coerce")
     edges = res.edges or []
-    n_real_bins = len(edges) + 1
-    if res.edges:
-        idx = np.searchsorted(res.edges, x_num.fillna(np.inf).to_numpy(), side="right")
+    labels_real = res.bin_labels[: len(edges) + 1] or ["bin_0"]
+    nan_label = NAN_LABEL if NAN_LABEL in res.bin_labels else labels_real[0]
+
+    if edges:
+        raw_idx = np.searchsorted(edges, x_num.fillna(np.inf).to_numpy(), side="right")
     else:
-        idx = np.zeros(len(x_num), dtype=int)
-    real_mask = x_num.notna().to_numpy()
-    labels_real = res.bin_labels[:n_real_bins] if res.bin_labels else [f"bin_0"]
-    if not labels_real:
-        labels_real = [f"bin_0"]
-    nan_label = NAN_LABEL if (NAN_LABEL in res.bin_labels) else None
-    out_arr = np.empty(len(x_num), dtype=object)
-    for i in range(len(x_num)):
-        if real_mask[i]:
-            j = idx[i] if idx[i] < len(labels_real) else len(labels_real) - 1
-            out_arr[i] = labels_real[j]
-        else:
-            out_arr[i] = nan_label if nan_label is not None else labels_real[0]
-    return pd.Series(out_arr, index=x.index)
+        raw_idx = np.zeros(len(x_num), dtype=int)
+    safe_idx = np.minimum(raw_idx, len(labels_real) - 1)
+
+    labels_arr = np.array(labels_real, dtype=object)
+    out = np.where(x_num.notna().to_numpy(), labels_arr[safe_idx], nan_label)
+    return pd.Series(out, index=x.index)
 
 
 def _apply_categorical(x: pd.Series, res: BinningResult) -> pd.Series:
