@@ -621,18 +621,22 @@ def _render_report_view(result, search: str = "", sort_by: str = "severity",
     blocks = []
     for blk in visible_features:
         figs = blk["figs"]
+        row_style = {"display": "flex", "gap": "8px", "marginBottom": "8px"}
+        cell_style = {"flex": "1 1 0", "minWidth": "0"}
+        graph_cell = lambda fig: html.Div(
+            dcc.Graph(figure=fig, config={"displayModeBar": False}),
+            style=cell_style,
+        )
         row1 = html.Div([
-            html.Div(dcc.Graph(figure=figs["rate_summary"], config={"displayModeBar": False}),
-                      style={"flex": "1 1 0", "minWidth": "0"}),
-            html.Div(dcc.Graph(figure=figs["rate_over_time"], config={"displayModeBar": False}),
-                      style={"flex": "1 1 0", "minWidth": "0"}),
-            html.Div(dcc.Graph(figure=figs["bin_shares"], config={"displayModeBar": False}),
-                      style={"flex": "1 1 0", "minWidth": "0"}),
-        ], style={"display": "flex", "gap": "8px", "marginBottom": "8px"})
-
-        rows = [row1]
+            graph_cell(figs["rate_summary"]),
+            graph_cell(figs["rate_over_time"]),
+        ], style=row_style)
+        row2_items = [graph_cell(figs["bin_shares"])]
         if blk["kind"] == "numeric":
-            rows.append(_outlier_block(figs.get("outliers")))
+            row2_items.append(html.Div(_outlier_block(figs.get("outliers")),
+                                          style=cell_style))
+        row2 = html.Div(row2_items, style=row_style)
+        rows = [row1, row2]
 
         # Numeric bin labels are interval ranges and self-describing,
         # so we only need this disclosure for categorical bins.
