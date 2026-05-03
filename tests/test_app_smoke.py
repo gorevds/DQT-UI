@@ -26,6 +26,7 @@ def test_session_store_lifecycle():
 
 def test_session_store_sweep():
     import time
+
     from dqt.app.store import SessionStore
     store = SessionStore(ttl_seconds=0)
     s = store.create()

@@ -41,3 +41,14 @@ filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::FutureWarning",
 ]
+
+[tool.ruff]
+line-length = 110
+target-version = "py39"
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+# E501 is line-length, handled by formatter; B008 mutable-default in Dash callbacks is fine
+ignore = ["E501", "B008"]
+per-file-ignores = { "tests/*" = ["E402"] }

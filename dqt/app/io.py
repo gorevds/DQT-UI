@@ -6,7 +6,6 @@ import io
 
 import pandas as pd
 
-
 MAX_BYTES = 250 * 1024 * 1024  # 250 MB
 
 

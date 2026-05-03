@@ -8,7 +8,6 @@ from __future__ import annotations
 import numpy as np
 import plotly.graph_objects as go
 
-
 PALETTE = [
     "rgb(31, 119, 180)", "rgb(255, 127, 14)", "rgb(44, 160, 44)",
     "rgb(214, 39, 40)", "rgb(148, 103, 189)", "rgb(140, 86, 75)",

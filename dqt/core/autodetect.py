@@ -5,7 +5,6 @@ from typing import Iterable, Optional
 
 import pandas as pd
 
-
 _TIME_HINTS = (
     "date", "time", "datetime", "timestamp", "period", "month", "year",
     "day", "week", "snapshot", "report", "applied", "created", "occurred",
@@ -59,7 +58,7 @@ def autodetect_target_column(
         s = df[col].dropna()
         score = 0
         unique = set(s.unique().tolist()) if not s.empty else set()
-        if unique and unique.issubset({0, 1, 0.0, 1.0, True, False}):
+        if unique and unique.issubset({0, 1}):
             score += 80
         elif len(unique) == 2:
             score += 50

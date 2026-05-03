@@ -10,7 +10,6 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from dqt.core.target_utils import TargetKind
 
-
 NAN_LABEL = "NaN"
 
 
@@ -97,14 +96,14 @@ class TreeBinner:
         if len(x_clean) < 2 or len(np.unique(x_clean)) < 2:
             labels = ["(-inf, +inf)"] + ([NAN_LABEL] if x_num.isna().any() else [])
             return BinningResult(col, "numeric", edges=[], bin_labels=labels,
-                                  bin_descriptions={l: l for l in labels})
+                                  bin_descriptions={lab: lab for lab in labels})
 
         edges = self._edges_numeric(x_clean, y_clean)
         labels = _format_numeric_labels(edges)
         if x_num.isna().any():
             labels.append(NAN_LABEL)
         return BinningResult(col, "numeric", edges=edges, bin_labels=labels,
-                              bin_descriptions={l: l for l in labels})
+                              bin_descriptions={lab: lab for lab in labels})
 
     def _fit_categorical(self, col: str, x: pd.Series, y: pd.Series) -> BinningResult:
         x_cat = x.astype(object).where(x.notna(), other=None)
@@ -112,7 +111,7 @@ class TreeBinner:
         if valid.empty:
             labels = [NAN_LABEL] if x.isna().any() else []
             return BinningResult(col, "categorical", cat_map={}, bin_labels=labels,
-                                  bin_descriptions={l: "(no data)" for l in labels})
+                                  bin_descriptions={lab: "(no data)" for lab in labels})
 
         # Encode each category by its mean target, then bin the encoding —
         # that way the tree splits on a monotone real axis (works for both

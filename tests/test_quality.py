@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 
 from dqt.core.quality import (
-    psi,
-    psi_categorical,
-    psi_over_time,
     bins_target_rate_over_time,
     feature_distribution_over_time,
     pairwise_bin_stability,
+    psi,
+    psi_categorical,
+    psi_over_time,
     stability_summary,
 )
 from dqt.core.target_utils import TargetKind

@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from dqt.demo import make_demo_dataset
+from dqt.app.pipeline import run_analysis
 from dqt.core.autodetect import (
     autodetect_features,
     autodetect_target_column,
     autodetect_time_column,
 )
-from dqt.app.pipeline import run_analysis
+from dqt.demo import make_demo_dataset
 
 
 def test_demo_basic_shape():

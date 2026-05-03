@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from dqt.core.grouping import TreeBinner, fit_binner, NAN_LABEL
+from dqt.core.grouping import NAN_LABEL, TreeBinner, fit_binner
 from dqt.core.target_utils import TargetKind
 
 

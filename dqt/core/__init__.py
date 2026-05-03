@@ -3,23 +3,23 @@ from dqt.core.autodetect import (
     autodetect_target_column,
     autodetect_time_column,
 )
-from dqt.core.target_utils import TargetKind, detect_target_kind
-from dqt.core.time_utils import bucket_time, infer_time_granularity
-from dqt.core.grouping import TreeBinner, fit_binner
-from dqt.core.quality import (
-    psi,
-    psi_over_time,
-    bins_target_rate_over_time,
-    feature_distribution_over_time,
-    pairwise_bin_stability,
-    stability_summary,
-)
 from dqt.core.checks import (
-    missingness_over_time,
     cardinality_over_time,
+    missingness_over_time,
     outlier_share_over_time,
     type_consistency,
 )
+from dqt.core.grouping import TreeBinner, fit_binner
+from dqt.core.quality import (
+    bins_target_rate_over_time,
+    feature_distribution_over_time,
+    pairwise_bin_stability,
+    psi,
+    psi_over_time,
+    stability_summary,
+)
+from dqt.core.target_utils import TargetKind, detect_target_kind
+from dqt.core.time_utils import bucket_time, infer_time_granularity
 
 __all__ = [
     "TargetKind",

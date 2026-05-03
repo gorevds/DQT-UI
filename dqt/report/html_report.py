@@ -6,7 +6,6 @@ from typing import Iterable
 
 import plotly.io as pio
 
-
 _TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -49,7 +48,7 @@ def build_html_report(
     pieces = []
     for blk in blocks:
         fig_html = []
-        for i, fig in enumerate(blk["figs"]):
+        for fig in blk["figs"]:
             fig_html.append(pio.to_html(fig, include_plotlyjs=False, full_html=False,
                                         config={"displayModeBar": False}))
         summary_html = "".join(

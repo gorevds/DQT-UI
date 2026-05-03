@@ -7,22 +7,22 @@ import pandas as pd
 
 from dqt.core import (
     TargetKind,
+    bins_target_rate_over_time,
     bucket_time,
     detect_target_kind,
     fit_binner,
-    psi_over_time,
-    bins_target_rate_over_time,
-    pairwise_bin_stability,
-    stability_summary,
     missingness_over_time,
     outlier_share_over_time,
+    pairwise_bin_stability,
+    psi_over_time,
+    stability_summary,
 )
 from dqt.core.target_utils import to_binary_target
 from dqt.plots import (
     plot_bin_shares_over_time,
+    plot_bins_summary,
     plot_outlier_share_over_time,
     plot_target_rate_per_bin_over_time,
-    plot_bins_summary,
 )
 
 
@@ -164,7 +164,6 @@ def _verdict_for(summary: dict, miss_max: float, has_outliers: bool) -> str:
     """Short human-readable summary line per feature."""
     parts = []
     psi_max = summary.get("psi_max")
-    psi_mean = summary.get("psi_mean")
     if isinstance(psi_max, (int, float)) and psi_max == psi_max:
         if psi_max > 0.25:
             parts.append(f"large drift (PSI peak {psi_max:.2f})")

@@ -1,8 +1,6 @@
 """End-to-end pipeline tests with synthetic data."""
 from __future__ import annotations
 
-import pandas as pd
-
 from dqt.app.pipeline import run_analysis
 
 

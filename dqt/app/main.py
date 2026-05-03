@@ -9,8 +9,8 @@ import argparse
 import base64
 import os
 
-from dash import Dash, Input, Output, State, dcc, html, dash_table, no_update, ctx
 import pandas as pd
+from dash import Dash, Input, Output, State, ctx, dash_table, dcc, html, no_update
 
 from dqt.app.io import column_summary, parse_upload
 from dqt.app.pipeline import run_analysis
@@ -24,7 +24,6 @@ from dqt.core.target_utils import detect_target_kind
 from dqt.core.time_utils import infer_time_granularity
 from dqt.demo import make_demo_dataset
 from dqt.report.html_report import build_html_report
-
 
 # ---------------------------------------------------------------------------
 # App factory
@@ -212,7 +211,7 @@ def _page_settings(sess):
         html.H2("3. Settings"),
         html.P([
             "Tune binning and time granularity. Defaults are reasonable for most datasets.",
-            html.Span(f" Time granularity auto-inferred from your data: ",
+            html.Span(" Time granularity auto-inferred from your data: ",
                        style={"color": "#656d76"}),
             html.Span(f"{inferred_gran}",
                        style={"color": "#1a7f37", "fontWeight": 600}),
@@ -647,15 +646,10 @@ def _render_report_view(result, search: str = "", sort_by: str = "stability_desc
         ],
     )
     visible_features = _filtered_features(result["features"], search, sort_by)
+    row_style = {"display": "flex", "gap": "8px", "marginBottom": "8px"}
     blocks = []
     for blk in visible_features:
         figs = blk["figs"]
-        row_style = {"display": "flex", "gap": "8px", "marginBottom": "8px"}
-        cell_style = {"flex": "1 1 0", "minWidth": "0"}
-        graph_cell = lambda fig: html.Div(
-            dcc.Graph(figure=fig, config={"displayModeBar": False}),
-            style=cell_style,
-        )
         row1 = html.Div([
             graph_cell(figs["rate_summary"]),
             graph_cell(figs["rate_over_time"]),
@@ -744,6 +738,16 @@ def _render_report_view(result, search: str = "", sort_by: str = "stability_desc
 
 
 _SEVERITY_LABEL = {"green": "● STABLE", "yellow": "● WATCH", "red": "● DRIFT"}
+
+
+_GRAPH_CELL_STYLE = {"flex": "1 1 0", "minWidth": "0"}
+
+
+def graph_cell(fig):
+    return html.Div(
+        dcc.Graph(figure=fig, config={"displayModeBar": False}),
+        style=_GRAPH_CELL_STYLE,
+    )
 
 
 def _no_outliers_badge():

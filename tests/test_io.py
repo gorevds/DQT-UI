@@ -1,4 +1,5 @@
 import base64
+
 import pandas as pd
 
 from dqt.app.io import column_summary, parse_upload
@@ -38,7 +39,7 @@ def test_parse_unknown_extension():
     payload = "data:text/plain;base64," + base64.b64encode(b"hello").decode()
     try:
         parse_upload(payload, "data.xyz")
-        assert False, "expected ValueError"
+        raise AssertionError("expected ValueError")
     except ValueError as e:
         assert "Unsupported" in str(e)
 
