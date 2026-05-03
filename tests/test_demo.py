@@ -17,12 +17,11 @@ from dqt.app.pipeline import run_analysis
 def test_demo_basic_shape():
     df = make_demo_dataset(n_rows=500)
     assert len(df) == 500
-    assert df.shape[1] == 37  # 1 time + 35 features + 1 target
+    assert df.shape[1] == 29  # 1 time + 27 features + 1 target
     assert "application_date" in df.columns
     assert "default_flag" in df.columns
-    # New enrichment columns
-    for col in ("phone_verification_score", "risk_segment_legacy",
-                "delinquency_balance", "device_age_months"):
+    for col in ("risk_segment_legacy", "delinquency_balance",
+                "loan_purpose", "is_repeat_customer", "random_token_score"):
         assert col in df.columns
 
 
@@ -48,20 +47,27 @@ def test_demo_has_growing_missingness():
 
 def test_demo_has_constant_high_missingness():
     df = make_demo_dataset(n_rows=4000)
-    # phone_verification_score: ~18% NaN, roughly constant across time
-    assert 0.13 < df["phone_verification_score"].isna().mean() < 0.23
     # risk_segment_legacy: ~60% NaN
     assert 0.55 < df["risk_segment_legacy"].isna().mean() < 0.65
 
 
 def test_demo_has_outlier_columns():
     df = make_demo_dataset(n_rows=4000)
-    # delinquency_balance: heavy spike — top 1% should be far above the median
+    # delinquency_balance: heavy spike — top 1% far above the median.
     s = df["delinquency_balance"]
     assert s.quantile(0.99) / s.quantile(0.5) > 30
-    # device_age_months: extreme tail >180 months for ~3% of present rows
-    da = pd.to_numeric(df["device_age_months"], errors="coerce").dropna()
-    assert (da > 180).mean() > 0.02
+
+
+def test_demo_stable_reference_features():
+    df = make_demo_dataset(n_rows=4000)
+    # Reference-stable features: no NaN, distribution shouldn't drift over time.
+    assert df["loan_purpose"].isna().sum() == 0
+    assert df["is_repeat_customer"].isna().sum() == 0
+    assert df["random_token_score"].isna().sum() == 0
+    # random_token_score should be uniformly distributed regardless of month.
+    df["m"] = df["application_date"].dt.to_period("M").astype(str)
+    monthly_means = df.groupby("m")["random_token_score"].mean()
+    assert monthly_means.std() < 0.05  # very stable across months
 
 
 def test_demo_has_binary_target():
@@ -163,5 +169,5 @@ def test_autodetect_on_demo_dataset():
     assert t == "application_date"
     assert y == "default_flag"
     feats = autodetect_features(df, t, y)
-    assert len(feats) == 35
+    assert len(feats) == 27
     assert t not in feats and y not in feats

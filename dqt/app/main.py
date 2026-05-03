@@ -100,8 +100,8 @@ def _page_upload(sess):
                                 "lineHeight": "20px",
                                 "fontFamily": "inherit",
                                 "whiteSpace": "nowrap"}),
-            html.Span("5 000 rows × 37 columns × 24 monthly buckets, with built-in "
-                       "drift / missingness / outliers.",
+            html.Span("8 000 rows × 29 columns × 24 monthly buckets, with built-in "
+                       "drift / missingness / outliers and a few stable references.",
                        style={"color": "#656d76", "fontSize": "12px",
                               "marginLeft": "12px"}),
         ], style={"marginTop": "12px", "display": "flex", "alignItems": "center",
