@@ -640,12 +640,16 @@ def _render_report_view(result, search: str = "", sort_by: str = "stability_desc
             graph_cell(figs["rate_summary"]),
             graph_cell(figs["rate_over_time"]),
         ], style=row_style)
+
+        outlier_fig = figs.get("outliers")
         row2_items = [graph_cell(figs["bin_shares"])]
-        if blk["kind"] == "numeric":
-            row2_items.append(html.Div(_outlier_block(figs.get("outliers")),
-                                          style=cell_style))
-        row2 = html.Div(row2_items, style=row_style)
-        rows = [row1, row2]
+        if outlier_fig is not None:
+            row2_items.append(graph_cell(outlier_fig))
+        rows = [row1, html.Div(row2_items, style=row_style)]
+        # Numeric features always run the outlier check; if it found nothing,
+        # bin_shares already took the full row above — append a thin badge.
+        if blk["kind"] == "numeric" and outlier_fig is None:
+            rows.append(_no_outliers_badge())
 
         # Numeric bin labels are interval ranges and self-describing,
         # so we only need this disclosure for categorical bins.
@@ -713,14 +717,11 @@ def _render_report_view(result, search: str = "", sort_by: str = "stability_desc
 _SEVERITY_LABEL = {"green": "● STABLE", "yellow": "● WATCH", "red": "● DRIFT"}
 
 
-def _outlier_block(fig):
-    if fig is not None:
-        return html.Div(dcc.Graph(figure=fig, config={"displayModeBar": False}),
-                         style={"width": "100%"})
-    return html.Div("No outliers detected.",
+def _no_outliers_badge():
+    return html.Div("✓ No outliers detected.",
                      style={"color": "#1a7f37", "fontSize": "13px",
                             "padding": "8px 12px", "background": "#dafbe1",
-                            "borderRadius": "4px", "marginTop": "4px"})
+                            "borderRadius": "4px"})
 
 
 def _summary_chips(summary):
