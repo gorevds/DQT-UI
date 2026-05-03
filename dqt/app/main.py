@@ -13,14 +13,11 @@ Run:
 from __future__ import annotations
 
 import argparse
-import io
+import base64
 import os
-import sys
 
-import dash
 from dash import Dash, Input, Output, State, dcc, html, dash_table, no_update, ctx
 import pandas as pd
-import plotly.graph_objects as go
 
 from dqt.app.io import column_summary, parse_upload
 from dqt.app.pipeline import run_analysis
@@ -664,7 +661,6 @@ def _summary_chips(summary):
 
 
 def _build_html_data_url(result):
-    import base64
     # Same row layout as the on-screen report: 3 bin-charts on top,
     # auxiliary checks in the middle, outliers full-width at the bottom.
     order = ("rate_summary", "rate_over_time", "bin_shares",
