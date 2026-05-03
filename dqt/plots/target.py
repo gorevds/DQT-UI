@@ -46,7 +46,7 @@ def plot_bin_shares_over_time(rate_df, time_col: str) -> go.Figure:
             hovertemplate="%{y:.1%}<extra>" + str(b) + "</extra>",
         ))
     fig.update_layout(
-        title="bin share over time",
+        title=_title("bin share"),
         xaxis_title=None, yaxis_title="share",
         yaxis=dict(tickformat=".0%", range=[0, 1]),
         hovermode="x unified", height=340, margin=dict(l=40, r=20, t=40, b=30),
@@ -81,7 +81,7 @@ def plot_target_rate_per_bin_over_time(rate_df, time_col: str) -> go.Figure:
                                  showlegend=False,
                                  hovertemplate="%{y:.3f}<extra>" + str(b) + "</extra>"))
     fig.update_layout(
-        title="target rate per bin over time",
+        title=_title("target rate per bin"),
         xaxis_title=None, yaxis_title="target rate",
         yaxis=dict(tickformat=".3f"),
         hovermode="x unified", height=340, margin=dict(l=40, r=20, t=40, b=30),
@@ -118,13 +118,17 @@ def plot_bins_summary(rate_df) -> go.Figure:
         hovertemplate="target rate: %{y:.3f}<extra></extra>",
     ))
     fig.update_layout(
-        title="target rate per bin (overall)",
+        title=_title("target rate per bin"),
         xaxis_title=None, yaxis_title="count",
         yaxis2=dict(title="target rate", overlaying="y", side="right",
                      tickformat=".3f"),
         height=340, margin=dict(l=40, r=40, t=40, b=30),
     )
     return fig
+
+
+def _title(text: str) -> dict:
+    return {"text": text, "x": 0.5, "xanchor": "center"}
 
 
 def _wmean(values, weights):

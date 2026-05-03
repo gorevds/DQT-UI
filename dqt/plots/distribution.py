@@ -8,7 +8,7 @@ def plot_numeric_distribution_over_time(dist_df, time_col: str) -> go.Figure:
     """Quantile bands (5/25/50/75/95) over time."""
     fig = go.Figure()
     if dist_df.empty:
-        fig.update_layout(title="no data")
+        fig.update_layout(title=_title("no data"))
         return fig
     x = dist_df[time_col].astype(str).tolist()
     fig.add_trace(go.Scatter(x=x, y=dist_df["q95"], mode="lines", name="q95",
@@ -25,7 +25,7 @@ def plot_numeric_distribution_over_time(dist_df, time_col: str) -> go.Figure:
                              line=dict(color="rgb(31, 119, 180)", width=2),
                              hovertemplate="median: %{y:.3f}<extra></extra>"))
     fig.update_layout(
-        title="distribution over time",
+        title=_title("distribution"),
         xaxis_title=None, yaxis_title=None,
         hovermode="x unified", height=340, margin=dict(l=40, r=20, t=40, b=30),
     )
@@ -36,7 +36,7 @@ def plot_categorical_share_over_time(share_df, time_col: str) -> go.Figure:
     """Stacked share of top-k categories per time bucket."""
     fig = go.Figure()
     if share_df.empty:
-        fig.update_layout(title="no data")
+        fig.update_layout(title=_title("no data"))
         return fig
     pivot = share_df.pivot_table(index=time_col, columns="category", values="share", fill_value=0)
     pivot = pivot.sort_index()
@@ -45,9 +45,13 @@ def plot_categorical_share_over_time(share_df, time_col: str) -> go.Figure:
                               hovertemplate="%{y:.3f}<extra>" + str(col) + "</extra>"))
     fig.update_layout(
         barmode="stack",
-        title="category share over time",
+        title=_title("category share"),
         xaxis_title=None, yaxis_title="share",
         yaxis=dict(tickformat=".0%"),
         height=340, margin=dict(l=40, r=20, t=40, b=30),
     )
     return fig
+
+
+def _title(text: str) -> dict:
+    return {"text": text, "x": 0.5, "xanchor": "center"}
