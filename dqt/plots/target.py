@@ -86,7 +86,7 @@ def plot_target_rate_per_bin_over_time(rate_df, feature: str, time_col: str) -> 
 
 
 def plot_bins_summary(rate_df, feature: str) -> go.Figure:
-    """Bar of overall target rate per bin (per-bin colour) + count on 2nd axis."""
+    """Bars = count per bin (per-bin colour); dotted line = target rate."""
     fig = go.Figure()
     if rate_df.empty:
         fig.update_layout(title="no data")
@@ -99,24 +99,24 @@ def plot_bins_summary(rate_df, feature: str) -> go.Figure:
     bins = summary["bin"].tolist()
     colors = palette_for(bins)
     fig.add_trace(go.Bar(
-        x=summary["bin"].astype(str), y=summary["rate"],
-        name="target rate",
+        x=summary["bin"].astype(str), y=summary["count"],
         marker_color=[colors[b] for b in bins],
         showlegend=False,
-        hovertemplate="%{x}: %{y:.3f}<extra></extra>",
+        hovertemplate="count: %{y}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
-        x=summary["bin"].astype(str), y=summary["count"],
-        name="count", yaxis="y2", mode="lines+markers",
-        line=dict(color="rgb(60, 60, 60)", width=1, dash="dot"),
-        marker=dict(size=6),
-        hovertemplate="count: %{y}<extra></extra>",
+        x=summary["bin"].astype(str), y=summary["rate"],
+        yaxis="y2", mode="lines+markers",
+        line=dict(color="rgb(60, 60, 60)", width=1.5, dash="dot"),
+        marker=dict(size=7, color="rgb(60, 60, 60)"),
+        showlegend=False,
+        hovertemplate="target rate: %{y:.3f}<extra></extra>",
     ))
     fig.update_layout(
         title="target rate per bin (overall)",
-        xaxis_title=None, yaxis_title="target rate",
-        yaxis=dict(tickformat=".3f"),
-        yaxis2=dict(title="count", overlaying="y", side="right"),
+        xaxis_title=None, yaxis_title="count",
+        yaxis2=dict(title="target rate", overlaying="y", side="right",
+                     tickformat=".3f"),
         height=340, margin=dict(l=40, r=40, t=40, b=30),
     )
     return fig
