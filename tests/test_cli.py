@@ -39,3 +39,23 @@ def test_analyze_explicit_columns(tmp_path, csv_file):
     ])
     assert rc == 0
     assert out.exists()
+
+
+def test_analyze_fail_on_red_returns_nonzero_for_drifting_demo(tmp_path):
+    """The synthetic binary_df has score-style drift built in — at --fail-on=yellow
+    or stricter, the run should exit non-zero with the offending features listed."""
+    from dqt.demo import make_demo_dataset
+    df = make_demo_dataset(n_rows=2000)
+    csv = tmp_path / "demo.csv"
+    df.to_csv(csv, index=False)
+
+    rc = cli_main(["analyze", str(csv), "-o", str(tmp_path / "r.html"),
+                    "--fail-on", "yellow"])
+    assert rc == 2  # demo has drift → should fail
+
+
+def test_analyze_fail_on_none_always_zero(tmp_path, csv_file):
+    rc = cli_main(["analyze", str(csv_file),
+                    "-o", str(tmp_path / "r.html"),
+                    "--fail-on", "none"])
+    assert rc == 0

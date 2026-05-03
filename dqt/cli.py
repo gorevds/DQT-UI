@@ -56,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--min-samples-leaf", type=float, default=0.05)
     a.add_argument("--psi-reference", default="first", choices=["first", "previous"])
     a.add_argument("--outlier-method", default="z", choices=["iqr", "z"])
+    a.add_argument(
+        "--fail-on", default="none", choices=["none", "yellow", "red"],
+        help="Exit non-zero if any feature reaches this severity or worse "
+             "(yellow = WATCH, red = DRIFT). Useful in CI.",
+    )
 
     serve = sub.add_parser("serve", help="Run the Dash UI (dev server).")
     serve.add_argument("--host", default="0.0.0.0")
@@ -106,6 +111,18 @@ def main(argv: list[str] | None = None) -> int:
         args.output.write_text(html, encoding="utf-8")
         print(f"✔ {args.output}  ({args.output.stat().st_size/1024:.1f} KB)",
               file=sys.stderr)
+
+        if args.fail_on != "none":
+            offending = "red" if args.fail_on == "red" else ("red", "yellow")
+            failed = [b for b in result["features"]
+                      if b.get("severity") in offending]
+            if failed:
+                print(f"✘ {len(failed)} feature(s) at severity ≥ {args.fail_on}:",
+                      file=sys.stderr)
+                for b in failed:
+                    print(f"  [{b.get('severity', '?'):>6}]  {b['feature']}  —  "
+                          f"{b.get('verdict', '')}", file=sys.stderr)
+                return 2
         return 0
 
     return 1
