@@ -6,6 +6,7 @@ from dqt.core.quality import (
     psi_over_time,
     bins_target_rate_over_time,
     feature_distribution_over_time,
+    pairwise_bin_stability,
     stability_summary,
 )
 from dqt.core.target_utils import TargetKind
@@ -86,3 +87,53 @@ def test_stability_summary():
     assert "rate_std" in summary
     assert "psi_mean" in summary
     assert summary["psi_max"] == 0.05
+
+
+def test_pairwise_stability_well_separated_bins():
+    rate_df = pd.DataFrame({
+        "m": ["1", "1", "2", "2"],
+        "bin": ["a", "b", "a", "b"],
+        "rate": [0.05, 0.50, 0.06, 0.49],
+        "count": [1000, 1000, 1000, 1000],
+    })
+    out = pairwise_bin_stability(rate_df, "m")
+    assert len(out) == 2
+    assert (out["stability"] > 0.99).all()
+
+
+def test_pairwise_stability_overlapping_bins():
+    rate_df = pd.DataFrame({
+        "m": ["1", "1"],
+        "bin": ["a", "b"],
+        "rate": [0.30, 0.31],
+        "count": [100, 100],
+    })
+    out = pairwise_bin_stability(rate_df, "m")
+    # Tiny rate gap with low n → near-zero z → Φ(z) ≈ 0.5
+    assert 0.4 < out["stability"].iloc[0] < 0.7
+
+
+def test_pairwise_stability_skips_singleton_buckets():
+    rate_df = pd.DataFrame({
+        "m": ["1", "2", "2"],
+        "bin": ["a", "a", "b"],
+        "rate": [0.1, 0.1, 0.5],
+        "count": [100, 100, 100],
+    })
+    out = pairwise_bin_stability(rate_df, "m")
+    assert list(out["m"]) == ["2"]
+
+
+def test_stability_summary_includes_pairwise():
+    rate_df = pd.DataFrame({
+        "m": ["1", "1", "2", "2"],
+        "bin": ["a", "b", "a", "b"],
+        "rate": [0.10, 0.50, 0.12, 0.48],
+        "count": [500, 500, 500, 500],
+    })
+    pw = pairwise_bin_stability(rate_df, "m")
+    summary = stability_summary(rate_df, psi_table=None, pairwise_stability=pw)
+    assert "stability_mean" in summary
+    assert "stability_min" in summary
+    assert "stability_std" in summary
+    assert summary["stability_mean"] > 0.99

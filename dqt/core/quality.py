@@ -1,10 +1,12 @@
 """Data quality metrics: PSI, target rate over time, distribution over time."""
 from __future__ import annotations
 
+from itertools import combinations
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from dqt.core.target_utils import TargetKind
 
@@ -120,11 +122,51 @@ def feature_distribution_over_time(
         return counts.rename(columns={"_cat": "category"})[[time_col, "category", "share"]]
 
 
+def pairwise_bin_stability(
+    bins_rate: pd.DataFrame,
+    time_col: str,
+) -> pd.DataFrame:
+    """Per-period mean of Φ(z) over all bin pairs — 0..1, higher = more separated.
+
+    For binary targets only. Input is the output of bins_target_rate_over_time:
+    a long table with columns [time_col, bin, rate, count]. For each time bucket
+    we take all unique bin pairs, compute the two-proportion z-statistic, push
+    it through the standard-normal CDF (so the result is bounded 0..1) and
+    average across pairs. Stable features keep this score close to 1 across
+    every period; if bins start to overlap or invert, the score drops.
+    """
+    if bins_rate.empty:
+        return pd.DataFrame(columns=[time_col, "stability"])
+    rows = []
+    for bucket, sub in bins_rate.groupby(time_col, observed=True):
+        bins = sub["bin"].tolist()
+        rates = sub.set_index("bin")["rate"]
+        counts = sub.set_index("bin")["count"]
+        if len(bins) < 2:
+            continue
+        confs = []
+        for b1, b2 in combinations(bins, 2):
+            n1, n2 = float(counts[b1]), float(counts[b2])
+            if n1 < 1 or n2 < 1:
+                continue
+            p1, p2 = float(rates[b1]), float(rates[b2])
+            p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
+            denom = np.sqrt(p_pool * (1 - p_pool) * (1 / n1 + 1 / n2))
+            if denom == 0:
+                continue
+            z = abs(p1 - p2) / denom
+            confs.append(stats.norm.cdf(z))
+        if confs:
+            rows.append({time_col: str(bucket), "stability": float(np.mean(confs))})
+    return pd.DataFrame(rows)
+
+
 def stability_summary(
     bins_rate: pd.DataFrame,
     psi_table: Optional[pd.DataFrame] = None,
+    pairwise_stability: Optional[pd.DataFrame] = None,
 ) -> dict:
-    """One-row summary per feature: rate_std, rate_range, psi_mean, psi_max."""
+    """One-row summary per feature: rate_std/range, psi_mean/max, stability_mean/min/std."""
     summary: dict = {}
     if not bins_rate.empty:
         per_bin = bins_rate.groupby("bin")["rate"].agg(["std", "min", "max"]).fillna(0.0)
@@ -133,6 +175,11 @@ def stability_summary(
     else:
         summary["rate_std"] = float("nan")
         summary["rate_range"] = float("nan")
+    if pairwise_stability is not None and not pairwise_stability.empty:
+        s = pairwise_stability["stability"]
+        summary["stability_mean"] = float(s.mean())
+        summary["stability_min"] = float(s.min())
+        summary["stability_std"] = float(s.std() if len(s) > 1 else 0.0)
     if psi_table is not None and not psi_table.empty:
         summary["psi_mean"] = float(psi_table["psi"].mean())
         summary["psi_max"] = float(psi_table["psi"].max())

@@ -12,6 +12,7 @@ from dqt.core import (
     fit_binner,
     psi_over_time,
     bins_target_rate_over_time,
+    pairwise_bin_stability,
     stability_summary,
     missingness_over_time,
     outlier_share_over_time,
@@ -112,7 +113,11 @@ def run_analysis(
         fig_summary = plot_bins_summary(rate)
 
         miss = missingness_over_time(work, feat, "__time__")
-        summ = stability_summary(rate, psi_t)
+        # Pairwise z-score stability is meaningful only for binary targets
+        # (the formula assumes two-proportion comparison).
+        pairwise = (pairwise_bin_stability(rate, "__time__")
+                    if binner_target_kind == TargetKind.BINARY else None)
+        summ = stability_summary(rate, psi_t, pairwise)
         summary_rows.append({"feature": feat, "kind": kind, **summ,
                              "missing_share_max": float(miss["missing_share"].max()) if not miss.empty else 0.0})
 

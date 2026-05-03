@@ -11,6 +11,7 @@ from dqt.core.quality import (
     psi_over_time,
     bins_target_rate_over_time,
     feature_distribution_over_time,
+    pairwise_bin_stability,
     stability_summary,
 )
 from dqt.core.checks import (
@@ -31,6 +32,7 @@ __all__ = [
     "psi_over_time",
     "bins_target_rate_over_time",
     "feature_distribution_over_time",
+    "pairwise_bin_stability",
     "stability_summary",
     "missingness_over_time",
     "cardinality_over_time",
