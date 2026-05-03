@@ -589,10 +589,29 @@ def _render_report_view(result):
                 style={"width": "100%"},
             ))
 
+        # Bins subsection — collapsed by default, click to expand.
+        descs = blk.get("bin_descriptions") or {}
+        bins_block = html.Details([
+            html.Summary(f"Bins ({len(descs)}) — click to expand",
+                          style={"cursor": "pointer", "fontSize": "13px",
+                                 "color": "#656d76", "padding": "4px 0"}),
+            html.Ul([
+                html.Li([
+                    html.B(label, style={"color": "#1f6feb", "marginRight": "8px"}),
+                    html.Span(desc, style={"color": "#1f2328"}),
+                ], style={"fontSize": "13px", "padding": "2px 0"})
+                for label, desc in descs.items()
+            ], style={"marginTop": "4px", "marginBottom": "4px",
+                       "paddingLeft": "20px", "listStyle": "disc"}),
+        ], style={"marginBottom": "8px", "background": "#f6f8fa",
+                   "padding": "6px 10px", "borderRadius": "4px"})
+
         blocks.append(html.Div([
             html.H3(f"{blk['feature']}  ", style={"display": "inline"}),
             html.Span(f"({blk['kind']})", style={"color": "#656d76", "fontSize": "13px"}),
-            html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px"}),
+            html.Div(_summary_chips(blk["summary"]), style={"marginBottom": "8px",
+                                                              "marginTop": "4px"}),
+            bins_block,
             *rows,
         ], style={"background": "#fff", "border": "1px solid #d0d7de", "borderRadius": "6px",
                    "padding": "16px", "marginBottom": "16px"}))

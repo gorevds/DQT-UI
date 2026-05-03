@@ -154,11 +154,13 @@ def run_analysis(
             "outliers": fig_outl,
         }
 
+        binner_result = binner.result(feat)
         feature_blocks.append({
             "feature": feat,
             "kind": kind,
             "summary": summ,
             "figs": figs,
+            "bin_descriptions": binner_result.bin_descriptions,
         })
 
     return {
