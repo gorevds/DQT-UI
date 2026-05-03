@@ -45,17 +45,7 @@ def run_analysis(
     outlier_method: str = "iqr",
     target_kind_override: Optional[str] = None,
 ) -> dict:
-    """Run the full DQ analysis. Returns a dict with per-feature blocks.
-
-    Output schema:
-      {
-        "meta": {time_col, target_col, target_kind, granularity, n_rows},
-        "features": [
-          {feature, kind, summary: {...}, figs: [plotly figures], tables: {...}}
-        ],
-        "summary_table": pd.DataFrame  # for the overview screen
-      }
-    """
+    """Run the full DQ analysis. Returns {meta, features[], summary_table}."""
     work = df.copy()
 
     info = detect_target_kind(work[target_col])

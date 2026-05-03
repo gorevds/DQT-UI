@@ -10,11 +10,7 @@ from dqt.core.target_utils import TargetKind
 
 
 def psi(actual: np.ndarray, expected: np.ndarray, bins: int = 10, eps: float = 1e-4) -> float:
-    """Population Stability Index between two numeric samples.
-
-    Quantile-bins the `actual` array; reuses those edges for `expected`.
-    Returns the canonical sum( (a-e) * log(a/e) ).
-    """
+    """Population Stability Index = sum((a-e) * log(a/e)) over quantile bins of `actual`."""
     actual = np.asarray(actual, dtype=float)
     expected = np.asarray(expected, dtype=float)
     actual = actual[np.isfinite(actual)]
@@ -38,10 +34,7 @@ def psi_over_time(
     reference: str = "first",
     bins: int = 10,
 ) -> pd.DataFrame:
-    """For each time bucket, PSI vs the reference bucket.
-
-    reference: "first" | "previous" | "<bucket-label>"
-    """
+    """PSI per time bucket vs `reference` ('first' | 'previous' | <bucket-label>)."""
     df = df[[feature, time_col]].dropna()
     buckets = sorted(df[time_col].dropna().unique().tolist())
     if not buckets:
@@ -73,11 +66,7 @@ def bins_target_rate_over_time(
     time_col: str,
     target_kind: TargetKind,
 ) -> pd.DataFrame:
-    """Per (bin, time-bucket): target rate (mean) + count + std-error.
-
-    For binary: rate = mean of {0,1}; SE = sqrt(p(1-p)/n).
-    For regression: rate = mean(y); SE = std(y)/sqrt(n).
-    """
+    """Per (bin, time-bucket): target rate (mean), count, and standard error."""
     g = df_binned.groupby([time_col, binned_feature], observed=True)[target_col]
     agg = g.agg(["mean", "count", "std"]).reset_index()
     agg.columns = [time_col, "bin", "rate", "count", "std"]
@@ -98,11 +87,7 @@ def feature_distribution_over_time(
     quantiles: tuple = (0.05, 0.25, 0.5, 0.75, 0.95),
     top_k_categories: int = 10,
 ) -> pd.DataFrame:
-    """Distribution of a raw feature per time bucket.
-
-    Numeric → returns long-format dataframe with quantile columns.
-    Categorical → returns share of top-k categories per bucket.
-    """
+    """Numeric → quantile cols per bucket; categorical → top-k share per bucket."""
     sub = df[[feature, time_col]].copy()
     if is_numeric:
         sub[feature] = pd.to_numeric(sub[feature], errors="coerce")
@@ -139,13 +124,7 @@ def stability_summary(
     bins_rate: pd.DataFrame,
     psi_table: Optional[pd.DataFrame] = None,
 ) -> dict:
-    """Aggregate quality metrics into a single row per feature.
-
-    * rate_std       : mean across bins of std-of-rate-over-time (low = stable)
-    * rate_range     : mean across bins of (max - min) of rate over time
-    * psi_mean       : mean PSI vs reference (if provided)
-    * psi_max        : max PSI vs reference (if provided)
-    """
+    """One-row summary per feature: rate_std, rate_range, psi_mean, psi_max."""
     summary: dict = {}
     if not bins_rate.empty:
         per_bin = bins_rate.groupby("bin")["rate"].agg(["std", "min", "max"]).fillna(0.0)

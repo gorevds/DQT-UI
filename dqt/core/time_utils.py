@@ -10,11 +10,7 @@ Granularity = Literal["day", "week", "month", "quarter", "year", "auto", "as_is"
 
 
 def infer_time_granularity(s: pd.Series) -> Granularity:
-    """Pick a reasonable bucket size based on the span of the data.
-
-    Returns 'as_is' when the column is already discrete (string/int periods)
-    and shouldn't be re-bucketed.
-    """
+    """Pick a bucket size from the data span. Returns 'as_is' for non-datetime cols."""
     if not _is_datetimelike(s):
         return "as_is"
 
@@ -37,14 +33,7 @@ def infer_time_granularity(s: pd.Series) -> Granularity:
 
 
 def bucket_time(s: pd.Series, granularity: Granularity = "auto") -> pd.Series:
-    """Convert a time column into ordered string buckets.
-
-    * If granularity == 'as_is' or the column is not datetime-like, returns the
-      column cast to string (preserving order via a CategoricalDtype with sorted
-      categories).
-    * Otherwise resamples to the requested granularity and returns string labels
-      like '2024-Q1', '2024-03', '2024-W12', '2024-03-15', '2024'.
-    """
+    """Convert a time column into an ordered Categorical of string buckets."""
     if granularity == "auto":
         granularity = infer_time_granularity(s)
 

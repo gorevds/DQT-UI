@@ -1,11 +1,4 @@
-"""Tree-based binning for numeric and categorical features.
-
-  * single class TreeBinner with sklearn-style fit/transform
-  * binary OR regression target (auto-routed via DecisionTreeClassifier /
-    DecisionTreeRegressor)
-  * for categorical features: target-encoded ordering then tree on the encoding
-  * NaN bin always materialised separately
-"""
+"""Tree-based binning for numeric and categorical features."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,21 +27,10 @@ class BinningResult:
 
 
 class TreeBinner:
-    """Tree-based binning of a single feature against a target.
+    """Tree-based binning of one or more features against a target.
 
-    Parameters
-    ----------
-    max_bins : int
-        Maximum number of leaves (excluding NaN bin).
-    min_samples_leaf : float | int
-        sklearn `min_samples_leaf` — int = absolute, float = fraction.
-    target_kind : TargetKind
-        Selects classifier vs regressor.
-    method : {"tree", "quantile", "manual"}
-        Binning strategy. "manual" requires `manual_edges`.
-    manual_edges : list[float], optional
-        Used when method == "manual" for numeric features.
-    random_state : int
+    method      : "tree" | "quantile" | "manual" (manual needs manual_edges)
+    target_kind : binary → DecisionTreeClassifier; else → DecisionTreeRegressor
     """
 
     def __init__(
@@ -73,11 +55,7 @@ class TreeBinner:
         self._results: dict[str, BinningResult] = {}
 
     def fit(self, X: pd.DataFrame, y: pd.Series, feature_kinds: Optional[dict] = None) -> "TreeBinner":
-        """Fit one binner per column in X.
-
-        feature_kinds: optional dict {col_name: 'numeric' | 'categorical'}.
-        If None, kinds are inferred from dtype.
-        """
+        """Fit one binner per column in X. feature_kinds overrides dtype inference."""
         feature_kinds = feature_kinds or {}
         for col in X.columns:
             kind = feature_kinds.get(col) or _infer_kind(X[col])
@@ -260,7 +238,7 @@ def fit_binner(
     min_samples_leaf: float = 0.05,
     method: str = "tree",
 ) -> TreeBinner:
-    """Convenience: build TreeBinner and fit it on df."""
+    """Build a TreeBinner and fit it against df[target_col]."""
     binner = TreeBinner(
         max_bins=max_bins,
         min_samples_leaf=min_samples_leaf,

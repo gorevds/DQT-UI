@@ -29,11 +29,10 @@ def outlier_share_over_time(
     iqr_k: float = 3.0,
     z_threshold: float = 4.0,
 ) -> pd.DataFrame:
-    """Share of values flagged as outliers per time bucket.
+    """Share of outliers per time bucket. method = 'iqr' (Tukey) | 'z' (|z|>thr).
 
-    method: 'iqr' (Tukey fence at iqr_k * IQR) or 'z' (|z| > z_threshold).
-    Outlier thresholds are computed *globally* on the feature (not per bucket),
-    so a drift in the share signals distribution change.
+    Thresholds are computed *globally* on the feature, so drift in the share
+    over time signals a distribution change rather than a per-bucket artifact.
     """
     s = pd.to_numeric(df[feature], errors="coerce")
     valid = s.dropna()
@@ -64,11 +63,7 @@ def outlier_share_over_time(
 
 
 def type_consistency(df: pd.DataFrame, feature: str, time_col: str) -> pd.DataFrame:
-    """Per time bucket: share of values that *can* be parsed as numeric.
-
-    A drop signals that the column is changing type (e.g. previously numeric
-    column starts containing strings like 'N/A', 'unknown').
-    """
+    """Per time bucket: share of values parseable as numeric (drops on type drift)."""
     s = df[feature]
     parsed = pd.to_numeric(s, errors="coerce")
     can_parse = parsed.notna() | s.isna()  # NaN doesn't count as a parse failure

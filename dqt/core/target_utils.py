@@ -24,14 +24,7 @@ class TargetInfo:
 
 
 def detect_target_kind(y: pd.Series, multiclass_threshold: int = 20) -> TargetInfo:
-    """Auto-detect whether target is binary, multiclass, or regression.
-
-    Heuristic:
-      * float dtype with > `multiclass_threshold` unique values → regression
-      * 2 unique non-null values → binary
-      * 3..multiclass_threshold integer/string unique values → multiclass
-      * otherwise → regression
-    """
+    """2 unique → binary; 3..threshold non-float → multiclass; else regression."""
     s = y.dropna()
     n_unique = int(s.nunique())
     nan_share = float(y.isna().mean())
@@ -61,11 +54,7 @@ def _looks_like_integer_floats(s: pd.Series) -> bool:
 
 
 def to_binary_target(y: pd.Series, info: TargetInfo) -> pd.Series:
-    """Coerce a binary target to {0, 1} preserving NaNs.
-
-    Used by TreeBinner when fitting on binary targets — sklearn's tree accepts
-    arbitrary class labels, but downstream metrics (event rate) assume 0/1.
-    """
+    """Coerce a binary target to {0, 1} preserving NaNs (downstream needs 0/1)."""
     if info.kind != TargetKind.BINARY or info.classes is None:
         raise ValueError("to_binary_target requires a binary TargetInfo")
     pos = info.classes[1]

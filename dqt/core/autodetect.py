@@ -1,8 +1,4 @@
-"""Heuristics for guessing time / target columns from a fresh DataFrame.
-
-Used to pre-fill the column pickers on the /columns page so the user usually
-just has to click Continue.
-"""
+"""Heuristics for guessing time / target columns from a fresh DataFrame."""
 from __future__ import annotations
 
 from typing import Iterable, Optional
@@ -24,13 +20,7 @@ _TARGET_HINTS = (
 
 
 def autodetect_time_column(df: pd.DataFrame) -> Optional[str]:
-    """Pick the column most likely to be the time axis.
-
-    Scoring:
-      +100 datetime dtype
-      +70  object/string column whose head parses as datetime (>80% rate)
-      +30  name contains a time-related token (date/time/period/...)
-    """
+    """Pick the most likely time column. Score: dtype 100 / parses 70 / name 30."""
     candidates: list[tuple[int, str]] = []
     for col in df.columns:
         s = df[col]
@@ -60,13 +50,7 @@ def autodetect_time_column(df: pd.DataFrame) -> Optional[str]:
 def autodetect_target_column(
     df: pd.DataFrame, exclude: Optional[Iterable[str]] = None,
 ) -> Optional[str]:
-    """Pick the column most likely to be the target.
-
-    Scoring:
-      +80 strictly binary {0, 1}
-      +50 has exactly 2 unique non-null values (any type)
-      +40 name contains a target-related token (target/label/default/...)
-    """
+    """Pick the most likely target column. Score: 0/1 80 / 2-unique 50 / name 40."""
     excl = set(exclude or ())
     candidates: list[tuple[int, str]] = []
     for col in df.columns:
@@ -95,6 +79,6 @@ def autodetect_target_column(
 def autodetect_features(
     df: pd.DataFrame, time_col: Optional[str], target_col: Optional[str],
 ) -> list[str]:
-    """Everything except time and target."""
+    """All columns except the time and target columns."""
     excl = {c for c in (time_col, target_col) if c}
     return [c for c in df.columns if c not in excl]

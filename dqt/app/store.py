@@ -1,7 +1,7 @@
-"""In-memory session store. Data is held in the server process — no disk persistence.
+"""In-memory session store with TTL eviction.
 
-A single-process gunicorn worker is assumed (multi-worker would need Redis).
-On server restart all sessions are lost — by design (privacy / simplicity).
+Single-process gunicorn worker is assumed; multi-worker would need Redis.
+Sessions are wiped on server restart by design (no disk persistence).
 """
 from __future__ import annotations
 

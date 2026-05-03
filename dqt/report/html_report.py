@@ -41,12 +41,8 @@ def build_html_report(
     target_col: str,
     feature_blocks: Iterable[dict],
 ) -> str:
-    """Render an HTML report.
-
-    feature_blocks: iterable of dicts with keys:
-        - feature (str)
-        - summary (dict[str, float])
-        - figs (list of plotly.graph_objects.Figure)
+    """Render a self-contained HTML report. feature_blocks: dicts with keys
+    `feature`, `summary` (dict), `figs` (list of plotly Figures).
     """
     plotly_lib = '<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>'
     blocks = list(feature_blocks)

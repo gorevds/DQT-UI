@@ -11,10 +11,7 @@ MAX_BYTES = 250 * 1024 * 1024  # 250 MB
 
 
 def parse_upload(contents: str, filename: str) -> pd.DataFrame:
-    """Decode a Dash dcc.Upload payload into a DataFrame.
-
-    Raises ValueError on unsupported format or oversized files.
-    """
+    """Decode a dcc.Upload payload into a DataFrame. Raises ValueError on bad input."""
     if not contents:
         raise ValueError("Empty upload")
     header, b64 = contents.split(",", 1)
@@ -45,7 +42,7 @@ def parse_upload(contents: str, filename: str) -> pd.DataFrame:
 
 
 def column_summary(df: pd.DataFrame) -> list[dict]:
-    """Per-column overview for the UI: name, dtype, nan share, n_unique, sample."""
+    """Per-column overview rows: name, dtype, nan share, n_unique, sample."""
     rows = []
     for c in df.columns:
         s = df[c]
