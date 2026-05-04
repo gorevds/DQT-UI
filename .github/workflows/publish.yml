@@ -16,7 +16,7 @@ jobs:
       # One-time setup on PyPI: https://pypi.org/manage/account/publishing/
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
