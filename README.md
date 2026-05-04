@@ -68,7 +68,8 @@ DQT is opinionated for **tabular data with a time column and a target**, where y
 ## Install
 
 ```bash
-pip install dqt-ui
+pip install dqtui          # distribution name on PyPI
+# from dqt import analyze  # importable module name
 ```
 
 Or run via Docker (image lives on GitHub Container Registry):

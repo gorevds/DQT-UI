@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/dqt-ui
+      url: https://pypi.org/p/dqtui
     permissions:
       # Trusted Publishing — no API token needed.
       # One-time setup on PyPI: https://pypi.org/manage/account/publishing/
