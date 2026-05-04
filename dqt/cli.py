@@ -101,6 +101,12 @@ def main(argv: list[str] | None = None) -> int:
              "is integer-encoded and treated as regression — bin charts will "
              "be less informative.",
     )
+    a.add_argument(
+        "--save-run", action="store_true",
+        help="Persist this analysis (severity counts + offenders + summary) "
+             "to the runs database. See `dqt runs list` / `dqt runs show <id>`. "
+             "Default location ~/.dqt/runs.db, override via DQT_RUNS_DB.",
+    )
     a.add_argument("--time", help="Time column name (auto-detected if omitted)")
     a.add_argument("--target", help="Target column name (auto-detected if omitted)")
     a.add_argument("--features", nargs="*", help="Feature columns (default: all but time/target)")
@@ -141,12 +147,50 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--port", type=int, default=8050)
     serve.add_argument("--debug", action="store_true")
 
+    runs = sub.add_parser("runs", help="Inspect persistent analysis runs.")
+    runs_sub = runs.add_subparsers(dest="runs_cmd", required=True)
+    runs_list = runs_sub.add_parser("list", help="List recent saved runs.")
+    runs_list.add_argument("--limit", type=int, default=20)
+    runs_show = runs_sub.add_parser("show", help="Show details of one run.")
+    runs_show.add_argument("id", type=int)
+    runs_del = runs_sub.add_parser("delete", help="Delete a run by id.")
+    runs_del.add_argument("id", type=int)
+
     args = p.parse_args(argv)
 
     if args.cmd == "serve":
         from dqt.app.main import app
         app.run(host=args.host, port=args.port, debug=args.debug)
         return 0
+
+    if args.cmd == "runs":
+        from dqt import runs as runs_mod
+        if args.runs_cmd == "list":
+            rows = runs_mod.list_runs(limit=args.limit)
+            if not rows:
+                print("(no saved runs — use `dqt analyze ... --save-run` first)",
+                      file=sys.stderr)
+                return 0
+            for r in rows:
+                print(f"#{r['id']:<4} {r['created_at']:<20s} "
+                      f"{r['target_col'] or '-':<20.20s} "
+                      f"red={r['red']} yellow={r['yellow']} green={r['green']}  "
+                      f"({r['n_features']} features, {r['n_rows']:,} rows)  "
+                      f"{r['source'] or ''}")
+            return 0
+        if args.runs_cmd == "show":
+            r = runs_mod.get(args.id)
+            if r is None:
+                print(f"run #{args.id} not found", file=sys.stderr)
+                return 1
+            import json as _json
+            print(_json.dumps(r, indent=2, default=str))
+            return 0
+        if args.runs_cmd == "delete":
+            ok = runs_mod.delete(args.id)
+            print("deleted" if ok else f"run #{args.id} not found",
+                  file=sys.stderr)
+            return 0 if ok else 1
 
     if args.cmd == "analyze":
         if args.input is not None:
@@ -204,6 +248,11 @@ def main(argv: list[str] | None = None) -> int:
         report.save_html(args.output)
         print(f"✔ {args.output}  ({args.output.stat().st_size/1024:.1f} KB)",
               file=sys.stderr)
+
+        if args.save_run:
+            from dqt.runs import save as runs_save
+            run_id = runs_save(report, source=source_label)
+            print(f"  saved run #{run_id}", file=sys.stderr)
 
         if args.notify:
             code = notify_post(args.notify, report, fmt=args.notify_format,
