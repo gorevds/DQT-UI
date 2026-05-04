@@ -88,6 +88,33 @@ def test_repr_html_for_jupyter(binary_df):
     assert "STABLE" in repr_html
 
 
+def test_drill_returns_sample_rows(binary_df):
+    rep = analyze(binary_df, time_col="date", target_col="target",
+                   features=["x_num"], drill_samples=5)
+    feat = rep.feature("x_num")
+    assert feat.samples  # populated
+    bucket, bins = next(iter(feat.samples.items()))
+    bin_label = next(iter(bins))
+    sample = feat.drill(bucket, bin_label)
+    assert isinstance(sample, pd.DataFrame)
+    assert len(sample) <= 5
+
+
+def test_drill_unknown_bucket_raises(binary_df):
+    rep = analyze(binary_df, time_col="date", target_col="target",
+                   features=["x_num"], drill_samples=2)
+    with pytest.raises(KeyError):
+        rep.feature("x_num").drill("9999-99", "any")
+
+
+def test_reference_dataset_changes_psi(binary_df):
+    """Smoke: passing a reference_df runs cleanly and returns a Report."""
+    ref = binary_df.head(500).copy()
+    rep = analyze(binary_df, time_col="date", target_col="target",
+                   features=["x_num"], reference_df=ref)
+    assert isinstance(rep.feature("x_num").summary.get("psi_max"), float)
+
+
 def test_analyze_raises_when_no_time_column():
     df = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"], "y": [0, 1, 0]})
     with pytest.raises(ValueError, match="time_col"):

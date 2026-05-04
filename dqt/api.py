@@ -36,6 +36,19 @@ class FeatureResult:
     summary: dict                                # rate_range, psi_*, stability_*, missing_share_max
     figs: dict[str, go.Figure] = field(default_factory=dict)
     bin_descriptions: dict = field(default_factory=dict)
+    samples: dict = field(default_factory=dict)  # {time_bucket: {bin_label: DataFrame}}
+
+    def drill(self, time_bucket: str, bin_label: str) -> pd.DataFrame:
+        """Sample rows that fell into ``bin_label`` during ``time_bucket``."""
+        try:
+            return self.samples[str(time_bucket)][str(bin_label)]
+        except KeyError as exc:
+            available_buckets = list(self.samples.keys())
+            raise KeyError(
+                f"No samples for ({time_bucket!r}, {bin_label!r}); "
+                f"available buckets: {available_buckets}. "
+                f"Pass drill_samples=N to analyze() to enable drill-down."
+            ) from exc
 
 
 @dataclass
@@ -140,6 +153,7 @@ def analyze(
     outlier_method: str = "z",
     config=None,
     reference_df: Optional[pd.DataFrame] = None,
+    drill_samples: int = 0,
 ) -> Report:
     """Run a DQ analysis on a tabular DataFrame.
 
@@ -208,6 +222,7 @@ def analyze(
         outlier_method=outlier_method,
         config=config,
         reference_df=reference_df,
+        drill_samples=drill_samples,
     )
     return Report(
         meta=raw["meta"],
@@ -219,6 +234,7 @@ def analyze(
                 verdict=b.get("verdict", ""),
                 summary=b["summary"], figs=b["figs"],
                 bin_descriptions=b.get("bin_descriptions", {}),
+                samples=b.get("samples", {}),
             )
             for b in raw["features"]
         ],

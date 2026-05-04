@@ -41,6 +41,7 @@ def run_analysis(
     target_kind_override: Optional[str] = None,
     config=None,
     reference_df: Optional[pd.DataFrame] = None,
+    drill_samples: int = 0,
 ) -> dict:
     """Run the full DQ analysis. Returns {meta, features[], summary_table}.
 
@@ -144,6 +145,20 @@ def run_analysis(
 
         binner_result = binner.result(feat)
         miss_max = float(miss["missing_share"].max()) if not miss.empty else 0.0
+        # Drill-down: collect first N original rows per (bin, time-bucket).
+        samples: dict = {}
+        if drill_samples > 0:
+            keep_cols = [c for c in [feat, target_col, time_col]
+                         if c in df.columns]
+            joined = df[keep_cols].copy()
+            joined["__bin__"] = binned[feat].values
+            joined["__time__"] = binned["__time__"].values
+            for (bucket, bin_label), grp in joined.groupby(
+                ["__time__", "__bin__"], observed=True, dropna=False,
+            ):
+                samples.setdefault(str(bucket), {})[str(bin_label)] = (
+                    grp.head(drill_samples).drop(columns=["__bin__", "__time__"])
+                )
         feature_blocks.append({
             "feature": feat,
             "kind": kind,
@@ -152,6 +167,7 @@ def run_analysis(
             "bin_descriptions": binner_result.bin_descriptions,
             "severity": _severity_for(summ, miss, thresholds=config.for_feature(feat)),
             "verdict": _verdict_for(summ, miss_max, fig_outl is not None),
+            "samples": samples,
         })
 
     return {
