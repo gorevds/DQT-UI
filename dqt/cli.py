@@ -94,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
              "dataset instead of the first/previous time bucket — i.e. compare "
              "every period to a 'golden' reference snapshot.",
     )
+    a.add_argument(
+        "--positive-class", metavar="CLASS",
+        help="For multiclass targets: binarize against this class (1 = match, "
+             "0 = other) and run as a binary analysis. Otherwise the multiclass "
+             "is integer-encoded and treated as regression — bin charts will "
+             "be less informative.",
+    )
     a.add_argument("--time", help="Time column name (auto-detected if omitted)")
     a.add_argument("--target", help="Target column name (auto-detected if omitted)")
     a.add_argument("--features", nargs="*", help="Feature columns (default: all but time/target)")
@@ -163,6 +170,18 @@ def main(argv: list[str] | None = None) -> int:
         reference_df = _read_file(args.reference) if args.reference else None
         if reference_df is not None:
             print(f"  reference: {args.reference} ({len(reference_df):,} rows)",
+                  file=sys.stderr)
+
+        # Binarize a multiclass target against the chosen positive class.
+        if args.positive_class is not None and args.target:
+            df = df.copy()
+            df[args.target] = (df[args.target].astype(str) == str(args.positive_class)).astype(int)
+            if reference_df is not None and args.target in reference_df.columns:
+                reference_df = reference_df.copy()
+                reference_df[args.target] = (
+                    reference_df[args.target].astype(str) == str(args.positive_class)
+                ).astype(int)
+            print(f"  binarized target → 1 = {args.positive_class!r}, 0 = other",
                   file=sys.stderr)
 
         report = analyze(
