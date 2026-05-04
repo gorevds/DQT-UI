@@ -7,14 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from dqt.api import analyze
 from dqt.app.io import parse_upload  # noqa: F401  (kept for API parity)
-from dqt.app.pipeline import run_analysis
-from dqt.core.autodetect import (
-    autodetect_features,
-    autodetect_target_column,
-    autodetect_time_column,
-)
-from dqt.report.html_report import build_html_report
+from dqt.notify import post as notify_post
 
 
 def _read(path: Path) -> pd.DataFrame:
@@ -29,14 +24,6 @@ def _read(path: Path) -> pd.DataFrame:
     raise SystemExit(f"Unsupported file extension: {path}")
 
 
-def _infer_kinds(df: pd.DataFrame, features: list[str]) -> dict:
-    out = {}
-    for f in features:
-        s = df[f]
-        out[f] = ("numeric" if pd.api.types.is_numeric_dtype(s)
-                                  and not pd.api.types.is_bool_dtype(s)
-                  else "categorical")
-    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -61,6 +48,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit non-zero if any feature reaches this severity or worse "
              "(yellow = WATCH, red = DRIFT). Useful in CI.",
     )
+    a.add_argument(
+        "--notify", metavar="URL",
+        help="Post a summary to this webhook URL after the analysis. "
+             "Slack/Teams incoming-webhook URLs work out of the box.",
+    )
+    a.add_argument(
+        "--notify-format", default="slack", choices=["slack", "json"],
+        help="Payload format for --notify (default: slack).",
+    )
 
     serve = sub.add_parser("serve", help="Run the Dash UI (dev server).")
     serve.add_argument("--host", default="0.0.0.0")
@@ -76,53 +72,43 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "analyze":
         df = _read(args.input)
-        time_col = args.time or autodetect_time_column(df)
-        if not time_col:
-            raise SystemExit("Could not auto-detect a time column; pass --time")
-        target_col = args.target or autodetect_target_column(df, exclude=[time_col])
-        if not target_col:
-            raise SystemExit("Could not auto-detect a target column; pass --target")
-        features = args.features or autodetect_features(df, time_col, target_col)
-        if not features:
-            raise SystemExit("No feature columns left after excluding time/target")
-
         print(f"→ {args.input}: {len(df):,} rows × {len(df.columns)} cols",
               file=sys.stderr)
-        print(f"  time={time_col}  target={target_col}  features={len(features)}",
-              file=sys.stderr)
 
-        result = run_analysis(
-            df=df, time_col=time_col, target_col=target_col,
-            features=features, feature_kinds=_infer_kinds(df, features),
-            granularity=args.granularity, binning_method=args.method,
-            max_bins=args.max_bins, min_samples_leaf=args.min_samples_leaf,
-            psi_reference=args.psi_reference, outlier_method=args.outlier_method,
+        report = analyze(
+            df,
+            time_col=args.time,
+            target_col=args.target,
+            features=args.features,
+            granularity=args.granularity,
+            binning_method=args.method,
+            max_bins=args.max_bins,
+            min_samples_leaf=args.min_samples_leaf,
+            psi_reference=args.psi_reference,
+            outlier_method=args.outlier_method,
         )
-        order = ("rate_summary", "rate_over_time", "bin_shares", "outliers")
-        blocks = [{
-            "feature": b["feature"],
-            "summary": b["summary"],
-            "figs": [b["figs"][k] for k in order if b["figs"].get(k) is not None],
-        } for b in result["features"]]
-        html = build_html_report(
-            title=target_col, time_col=time_col, target_col=target_col,
-            feature_blocks=blocks,
-        )
-        args.output.write_text(html, encoding="utf-8")
+        m = report.meta
+        print(f"  time={m['time_col']}  target={m['target_col']}  "
+              f"features={len(report.features)}", file=sys.stderr)
+
+        report.save_html(args.output)
         print(f"✔ {args.output}  ({args.output.stat().st_size/1024:.1f} KB)",
               file=sys.stderr)
 
-        if args.fail_on != "none":
-            offending = "red" if args.fail_on == "red" else ("red", "yellow")
-            failed = [b for b in result["features"]
-                      if b.get("severity") in offending]
-            if failed:
-                print(f"✘ {len(failed)} feature(s) at severity ≥ {args.fail_on}:",
+        if args.notify:
+            code = notify_post(args.notify, report, fmt=args.notify_format,
+                                title=f"DQT — {m['target_col']}")
+            print(f"  notify → HTTP {code}", file=sys.stderr)
+
+        if args.fail_on != "none" and report.has_drift(args.fail_on):
+            failed = (report.features_at("red") if args.fail_on == "red"
+                      else report.features_at("red") + report.features_at("yellow"))
+            print(f"✘ {len(failed)} feature(s) at severity ≥ {args.fail_on}:",
+                  file=sys.stderr)
+            for f in failed:
+                print(f"  [{f.severity:>6}]  {f.name}  —  {f.verdict}",
                       file=sys.stderr)
-                for b in failed:
-                    print(f"  [{b.get('severity', '?'):>6}]  {b['feature']}  —  "
-                          f"{b.get('verdict', '')}", file=sys.stderr)
-                return 2
+            return 2
         return 0
 
     return 1
