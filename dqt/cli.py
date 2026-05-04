@@ -12,7 +12,7 @@ from dqt.app.io import parse_upload  # noqa: F401  (kept for API parity)
 from dqt.notify import post as notify_post
 
 
-def _read(path: Path) -> pd.DataFrame:
+def _read_file(path: Path, engine: str = "auto") -> pd.DataFrame:
     name = path.name.lower()
     if name.endswith((".csv", ".tsv", ".txt")):
         sep = "\t" if name.endswith(".tsv") else None
@@ -20,8 +20,32 @@ def _read(path: Path) -> pd.DataFrame:
             return pd.read_csv(path, sep=None, engine="python")
         return pd.read_csv(path, sep=sep)
     if name.endswith((".parquet", ".pq")):
+        if engine == "duckdb":
+            try:
+                import duckdb  # type: ignore
+            except ImportError as exc:
+                raise SystemExit(
+                    "--engine duckdb requires duckdb (`pip install duckdb`)"
+                ) from exc
+            # Glob-friendly: handles both single files and directories of parquet.
+            return duckdb.query(f"SELECT * FROM '{path}'").to_df()
         return pd.read_parquet(path)
     raise SystemExit(f"Unsupported file extension: {path}")
+
+
+def _read_sql(uri: str, table_or_query: str) -> pd.DataFrame:
+    try:
+        import sqlalchemy  # type: ignore
+    except ImportError as exc:
+        raise SystemExit(
+            "SQL input requires SQLAlchemy (`pip install sqlalchemy` plus the "
+            "driver for your database, e.g. psycopg2-binary / pymysql / snowflake-sqlalchemy)"
+        ) from exc
+    engine = sqlalchemy.create_engine(uri)
+    # If the argument looks like a SELECT, run it as-is; otherwise treat as a table name.
+    if table_or_query.strip().lower().startswith("select"):
+        return pd.read_sql(table_or_query, engine)
+    return pd.read_sql_table(table_or_query, engine)
 
 
 
@@ -30,8 +54,14 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="dqt", description="DQT — Data Quality Tool")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    a = sub.add_parser("analyze", help="Analyze a CSV/Parquet file and write an HTML report.")
-    a.add_argument("input", type=Path, help="Path to input CSV / Parquet")
+    a = sub.add_parser("analyze", help="Analyze a CSV/Parquet/SQL source and write an HTML report.")
+    a.add_argument("input", type=Path, nargs="?",
+                    help="Path to input CSV / Parquet (omit if --sql-uri given)")
+    a.add_argument("--engine", default="auto", choices=["auto", "duckdb"],
+                    help="Read engine for parquet (duckdb is faster on big files / dirs).")
+    a.add_argument("--sql-uri", help="SQLAlchemy URL (postgres://, snowflake://, ...) — ignored if `input` given")
+    a.add_argument("--sql-source", default=None,
+                    help="Table name or SELECT query when reading from SQL")
     a.add_argument("--time", help="Time column name (auto-detected if omitted)")
     a.add_argument("--target", help="Target column name (auto-detected if omitted)")
     a.add_argument("--features", nargs="*", help="Feature columns (default: all but time/target)")
@@ -71,8 +101,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "analyze":
-        df = _read(args.input)
-        print(f"→ {args.input}: {len(df):,} rows × {len(df.columns)} cols",
+        if args.input is not None:
+            df = _read_file(args.input, engine=args.engine)
+            source_label = str(args.input)
+        elif args.sql_uri:
+            if not args.sql_source:
+                raise SystemExit("--sql-uri requires --sql-source (table name or SELECT query)")
+            df = _read_sql(args.sql_uri, args.sql_source)
+            source_label = f"sql:{args.sql_source}"
+        else:
+            raise SystemExit("Pass an input file path or --sql-uri")
+        print(f"→ {source_label}: {len(df):,} rows × {len(df.columns)} cols",
               file=sys.stderr)
 
         report = analyze(
