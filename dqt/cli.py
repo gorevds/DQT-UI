@@ -33,6 +33,32 @@ def _read_file(path: Path, engine: str = "auto") -> pd.DataFrame:
     raise SystemExit(f"Unsupported file extension: {path}")
 
 
+def _apply_filters(df: pd.DataFrame, args) -> pd.DataFrame:
+    """Apply --from / --to / --filter col=value pre-filters."""
+    if (args.date_from or args.date_to):
+        if not args.time:
+            raise SystemExit("--from/--to require --time COL to know which column to filter")
+        s = pd.to_datetime(df[args.time], errors="coerce")
+        if args.date_from:
+            df = df[s >= pd.Timestamp(args.date_from)]
+        if args.date_to:
+            df = df[s <= pd.Timestamp(args.date_to)]
+    for cond in args.filter or []:
+        if "=" not in cond:
+            raise SystemExit(f"--filter expects col=value, got {cond!r}")
+        col, value = cond.split("=", 1)
+        col = col.strip()
+        value = value.strip()
+        if col not in df.columns:
+            raise SystemExit(f"--filter: unknown column {col!r}")
+        # Try numeric coercion first; fall back to string match.
+        try:
+            df = df[df[col] == type(df[col].iloc[0])(value)]
+        except (ValueError, TypeError, IndexError):
+            df = df[df[col].astype(str) == value]
+    return df
+
+
 def _read_sql(uri: str, table_or_query: str) -> pd.DataFrame:
     try:
         import sqlalchemy  # type: ignore
@@ -87,6 +113,15 @@ def main(argv: list[str] | None = None) -> int:
         "--notify-format", default="slack", choices=["slack", "json"],
         help="Payload format for --notify (default: slack).",
     )
+    a.add_argument("--from", dest="date_from", metavar="YYYY-MM-DD",
+                    help="Drop rows whose --time column is before this date.")
+    a.add_argument("--to", dest="date_to", metavar="YYYY-MM-DD",
+                    help="Drop rows whose --time column is after this date.")
+    a.add_argument(
+        "--filter", action="append", default=[], metavar="COL=VALUE",
+        help="Pre-filter rows: e.g. --filter region=Moscow --filter channel=web. "
+             "Repeat for multiple conditions; all must match (AND).",
+    )
 
     serve = sub.add_parser("serve", help="Run the Dash UI (dev server).")
     serve.add_argument("--host", default="0.0.0.0")
@@ -113,6 +148,11 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("Pass an input file path or --sql-uri")
         print(f"→ {source_label}: {len(df):,} rows × {len(df.columns)} cols",
               file=sys.stderr)
+
+        # Pre-filter: --from/--to and --filter col=value, all conditions ANDed.
+        df = _apply_filters(df, args)
+        if df.empty:
+            raise SystemExit("After --from/--to/--filter no rows remain")
 
         report = analyze(
             df,
