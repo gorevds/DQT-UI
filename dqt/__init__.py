@@ -11,5 +11,5 @@ See :mod:`dqt.api` for the full Report / FeatureResult interface and
 """
 from dqt.api import FeatureResult, Report, analyze
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __all__ = ["analyze", "Report", "FeatureResult", "__version__"]

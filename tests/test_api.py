@@ -10,7 +10,7 @@ from dqt.demo import make_demo_dataset
 
 def test_version_string():
     assert isinstance(__version__, str)
-    assert __version__ == "0.1.0"
+    assert __version__ == "1.0.0"
 
 
 def test_analyze_minimal_autodetect():
