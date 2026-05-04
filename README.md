@@ -65,29 +65,57 @@ DQT is opinionated for **tabular data with a time column and a target**, where y
 
 ---
 
-## Quickstart (local)
+## Install
+
+```bash
+pip install dqt-ui
+```
+
+Or run via Docker (image lives on GitHub Container Registry):
+
+```bash
+docker run --rm -p 8050:8050 ghcr.io/gorevds/dqt-ui:latest
+# or:  docker compose up
+```
+
+## Quickstart
+
+**Interactive UI** — open `http://localhost:8050` and walk through the 4 steps (Upload → Columns → Settings → Report):
+
+```bash
+dqt serve
+```
+
+**Headless HTML report** — drop into any cron / CI:
+
+```bash
+dqt analyze data.csv -o report.html              # auto-detects time/target/features
+dqt analyze data.parquet -o report.html \
+            --time snapshot_date --target default \
+            --fail-on red                        # exit code 2 if any feature drifts
+```
+
+**Python library** — use it in a notebook:
+
+```python
+from dqt import analyze
+
+report = analyze(df)                          # auto-detects time, target, features
+report.severity_counts()                      # {'green': 19, 'yellow': 5, 'red': 3}
+report.feature("score_v2").verdict            # "Large drift (PSI peak 1.71). …"
+report.has_drift("yellow")                    # True
+report.save_html("dq.html")
+report                                        # rich HTML preview in Jupyter
+```
+
+## Develop locally
 
 ```bash
 git clone https://github.com/gorevds/dqt-ui.git
 cd dqt-ui
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e .
-dqt serve                                    # interactive UI on :8050
-dqt analyze data.csv -o report.html          # headless one-shot HTML report
-```
-
-Open `http://localhost:8050`, drop a CSV / Parquet file, and walk through the four steps:
-
-1. **Upload** — drag-and-drop CSV or Parquet (up to 250 MB).
-2. **Columns** — pick time / target / feature columns. Granularity and target type are auto-detected.
-3. **Settings** — choose binning method (tree / quantile), max bins, time granularity, PSI reference, outlier method.
-4. **Report** — interactive plots per feature, plus a single-file HTML export.
-
-## Quickstart (Docker)
-
-```bash
-docker build -t dqt .
-docker run --rm -p 8050:8050 dqt
+pip install -e .[test]
+pytest
 ```
 
 ## Production deploy (single server, nginx + Let's Encrypt)

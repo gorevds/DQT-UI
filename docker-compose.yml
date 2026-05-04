@@ -1,0 +1,12 @@
+services:
+  dqt:
+    image: ghcr.io/gorevds/dqt-ui:latest
+    # Or build from source:
+    # build: .
+    container_name: dqt
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    environment:
+      DQT_HOST: 0.0.0.0
+      DQT_PORT: 8050
