@@ -5,7 +5,68 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Added
+### Added — v1.2 multi-track release
+
+#### Wave 2 — run-to-run continuity
+- **Run comparison**: `dqt runs diff A B` (text/json), `GET /api/v1/runs/<a>/diff/<b>`,
+  severity transitions + PSI delta + new offenders.
+- **Scheduled monitoring**: `dqt schedule input.parquet --time T --target Y
+  --notify URL [--every SECONDS]` — runs analyze, diffs vs the previous saved
+  run, posts to Slack/Teams only when something changed.
+- **Reference baseline registry**: `dqt baseline freeze NAME --from FILE` plus
+  `--reference-baseline NAME` flag for analyze. Baselines stored as parquet
+  with sha256 in the runs DB.
+- **Score drift workflow**: `dqt analyze --score-col COLUMN` monitors the
+  score itself; per-bucket calibration drift detected when target is binary.
+- **i18n verdicts**: `DQT_VERDICT_LOCALE=ru` switches verdict text. en + ru
+  bundled; locales discovered from `dqt/i18n/<code>.py`.
+
+#### Wave 3 — team product
+- **Workspaces lite**: every run/baseline/share token/audit entry can be
+  scoped to a workspace (slug). Default workspace is back-compat.
+- **Read-only share tokens**: `POST /api/v1/runs/<id>/share` mints a TTL-bound
+  URL-safe token; `GET /api/v1/share/<token>` returns the run record.
+- **Run history UI**: `/runs` Dash page with filters by workspace, severity,
+  target.
+- **Tamper-evident audit log**: JSONL at `DQT_AUDIT_LOG`; HMAC-SHA256 hash
+  chain when `DQT_AUDIT_HMAC_KEY` is set; `audit.verify_log` returns the
+  first tampered line.
+- **Per-workspace severity profiles** via `workspaces.set_severity_yaml`;
+  resolved by `dqt.config.for_workspace`.
+- **Warehouse push-down**: `dqt.warehouse` runs PSI as SQL aggregates on
+  duckdb (canonical) — orders of magnitude faster on big parquet
+  directories.
+
+#### Wave 4 — Cloud-tier software
+- **Postgres-backed runs DB**: set `DQT_RUNS_DSN=postgresql://...` to
+  switch storage from SQLite to Postgres transparently.
+- **Late-binding labels**: `dqt labels add <run_id> --scored FILE
+  --score-col SCORE --label-col Y` retrofits AUC/Gini/KS per period
+  onto a saved run.
+- **Event webhooks**: `dqt.events.subscribe(URL, pattern="run.*",
+  workspace="risk")`; events fanned out fire-and-forget on
+  run.created / severity.changed / baseline.frozen / share.* /
+  rbac.* / auth.*.
+- **OIDC stub auth** (`DQT_AUTH=oidc`): discovery, code exchange,
+  before_request guard, allowed-domain gate. SAML deferred — banks
+  put a SAML proxy in front.
+
+#### Wave 5 — enterprise software
+- **Regulatory templates**: `dqt regulatory render {sr_11_7,
+  ifrs9_staging, cbr_483p} <run_id> -o report.md` renders Federal
+  Reserve SR 11-7, IFRS 9 SICR, and ЦБ РФ 483-П starter reports.
+  Markdown by default, HTML via `markdown` package, PDF via
+  weasyprint (lazy-imported).
+- **152-ФЗ + GDPR doc-pack** under `dqt/templates/compliance/`,
+  exposed via `dqt.compliance.read_doc`.
+- **Encryption at rest**: `DQT_ENCRYPTION_KEY` (Fernet) wraps session
+  parquet files; falls back to plain-parquet read for legacy files
+  so operators can turn encryption on without rewriting history.
+- **RBAC primitives**: `dqt.rbac` with workspace × role × permission
+  tables. Open mode (no auth) returns True; activated only when
+  `DQT_AUTH` is set.
+
+### Added — earlier in v1.1 (recap)
 - **Pairwise z-stability for regression targets** — the metric is now
   defined for both binary (two-proportion z) and continuous targets
   (two-mean z using per-bin SE). Multiclass without `--positive-class`

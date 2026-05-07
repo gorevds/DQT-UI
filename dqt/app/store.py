@@ -216,7 +216,12 @@ class SessionStore:
             # raising and silently losing the disk record.
             meta_path.write_text(json.dumps(meta, default=str), encoding="utf-8")
             if sess.df is not None:
-                sess.df.to_parquet(df_path, index=False)
+                # Use the encryption helper so DQT_ENCRYPTION_KEY transparently
+                # wraps the parquet payload at rest. Falls back to plain
+                # ``to_parquet`` when the env var isn't set.
+                from dqt.encryption import write_parquet
+
+                write_parquet(sess.df, str(df_path))
             elif df_path.exists():
                 df_path.unlink()
         except Exception:  # noqa: BLE001 — disk failures must not break the request
@@ -279,7 +284,9 @@ class SessionStore:
             df_path = self._persist_dir / f"{sess.sid}.parquet"
             if meta.get("has_df") and df_path.exists():
                 try:
-                    sess.df = pd.read_parquet(df_path)
+                    from dqt.encryption import read_parquet
+
+                    sess.df = read_parquet(str(df_path))
                 except Exception:  # noqa: BLE001
                     _log.exception("could not restore parquet for sid=%s", sess.sid)
             self._sessions[sess.sid] = sess

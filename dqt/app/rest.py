@@ -46,6 +46,41 @@ def _max_api_upload_bytes() -> int:
     return mb * 1024 * 1024
 
 
+def _require_perm(permission: str):
+    """Decorator: short-circuit a view with 403 if RBAC denies the action.
+
+    A no-op when ``DQT_AUTH`` is unset (open mode). When auth is on, the
+    user email comes from Flask's session (set by :mod:`dqt.auth`); the
+    check delegates to :func:`dqt.rbac.check`.
+    """
+    from functools import wraps
+
+    def decorator(fn):
+        @wraps(fn)
+        def _wrapped(*args, **kwargs):
+            from flask import request as _flask_request
+            from flask import session as _flask_session
+
+            from dqt import rbac
+
+            email = (_flask_session.get("user") or {}).get("email")
+            ws = (_flask_request.args.get("workspace")
+                  or _flask_request.form.get("workspace")
+                  or "default")
+            if not rbac.check(email, permission, workspace=ws):
+                from flask import jsonify
+
+                resp = jsonify({"error": "forbidden", "code": 403,
+                                  "permission": permission})
+                resp.status_code = 403
+                return resp
+            return fn(*args, **kwargs)
+
+        return _wrapped
+
+    return decorator
+
+
 def register_api(flask_app: Any) -> None:
     """Mount the REST API Blueprint on ``flask_app``.
 
@@ -74,6 +109,7 @@ def register_api(flask_app: Any) -> None:
         return jsonify({"status": "ok", "version": _version_string()})
 
     @bp.post("/runs")
+    @_require_perm("analyze")
     def _create_run():
         from dqt import analyze
         from dqt.runs import save as runs_save
@@ -152,6 +188,55 @@ def register_api(flask_app: Any) -> None:
             if isinstance(f, dict) and f.get("feature") == name:
                 return jsonify(_json_safe(f))
         return _err(404, f"feature {name!r} not found in run #{run_id}")
+
+    @bp.get("/runs/<int:a_id>/diff/<int:b_id>")
+    def _diff_runs(a_id: int, b_id: int):
+        from dqt.runs_compare import diff_runs
+
+        try:
+            return jsonify(_json_safe(diff_runs(a_id, b_id)))
+        except KeyError as exc:
+            return _err(404, str(exc))
+
+    @bp.post("/runs/<int:run_id>/share")
+    @_require_perm("share")
+    def _share_token(run_id: int):
+        from dqt import audit
+        from dqt.runs import get as runs_get
+        from dqt.share_tokens import issue
+
+        if runs_get(run_id) is None:
+            return _err(404, f"run #{run_id} not found")
+        body = request.get_json(silent=True) or {}
+        ttl = body.get("ttl_days", 7)
+        try:
+            ttl_days = int(ttl)
+        except (TypeError, ValueError):
+            ttl_days = 7
+        rec = issue(
+            run_id, ttl_days=ttl_days,
+            description=body.get("description") if isinstance(body.get("description"), str) else None,
+        )
+        audit.record("share_token.api_issued",
+                      {"run_id": run_id, "ttl_days": ttl_days})
+        return jsonify(_json_safe(rec))
+
+    @bp.get("/share/<token>")
+    def _share_view(token: str):
+        from dqt import audit
+        from dqt.runs import get as runs_get
+        from dqt.share_tokens import lookup
+
+        rec = lookup(token)
+        if rec is None:
+            return _err(404, "share token invalid, expired, or revoked")
+        run = runs_get(int(rec["run_id"]))
+        if run is None:
+            return _err(404, f"run #{rec['run_id']} no longer exists")
+        audit.record("share_token.accessed",
+                      {"token_prefix": token[:8] + "…", "run_id": run["id"]},
+                      workspace=rec.get("workspace"))
+        return jsonify(_unwrap_runs_record(run))
 
     flask_app.register_blueprint(bp)
     _log.info("dqt REST API mounted at /api/v1")

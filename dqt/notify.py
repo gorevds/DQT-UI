@@ -10,13 +10,13 @@ from typing import Any
 from dqt.api import Report
 
 
-def _payload_json(report: Report, title: str) -> dict:
+def _payload_json(report: Report, title: str, extra_text: str = "") -> dict:
     counts = report.severity_counts()
     offenders = sorted(
         [f for f in report.features if f.severity in ("red", "yellow")],
         key=lambda f: (f.severity != "red", f.name),
     )
-    return {
+    payload = {
         "title": title,
         "meta": report.meta,
         "severity_counts": counts,
@@ -26,9 +26,12 @@ def _payload_json(report: Report, title: str) -> dict:
         ],
         "n_offenders": len(offenders),
     }
+    if extra_text:
+        payload["extra_text"] = extra_text
+    return payload
 
 
-def _payload_slack(report: Report, title: str) -> dict:
+def _payload_slack(report: Report, title: str, extra_text: str = "") -> dict:
     counts = report.severity_counts()
     m = report.meta
     summary = (
@@ -48,19 +51,23 @@ def _payload_slack(report: Report, title: str) -> dict:
         ]
         blocks.append({"type": "section",
                         "text": {"type": "mrkdwn", "text": "\n".join(lines)}})
+    if extra_text:
+        blocks.append({"type": "section",
+                        "text": {"type": "mrkdwn", "text": f"```\n{extra_text}\n```"}})
     return {"text": summary, "blocks": blocks}
 
 
-def post(url: str, report: Report, fmt: str = "json", title: str = "DQT report") -> int:
+def post(url: str, report: Report, fmt: str = "json", title: str = "DQT report",
+         extra_text: str = "") -> int:
     """POST a notification to ``url``. fmt: 'json' | 'slack'.
 
     Returns HTTP status code. Errors are logged to stderr but don't raise —
     a notification failure should never break a CI step.
     """
     if fmt == "slack":
-        body = _payload_slack(report, title)
+        body = _payload_slack(report, title, extra_text=extra_text)
     elif fmt == "json":
-        body = _payload_json(report, title)
+        body = _payload_json(report, title, extra_text=extra_text)
     else:
         raise ValueError(f"Unknown notify format: {fmt}")
     data = json.dumps(body).encode()

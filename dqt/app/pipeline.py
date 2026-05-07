@@ -206,30 +206,36 @@ def _infer_kind(s: pd.Series) -> str:
 
 
 def _verdict_for(summary: dict, miss_max: float, has_outliers: bool) -> str:
-    """Short human-readable summary line per feature."""
-    parts = []
+    """Short human-readable summary line per feature.
+
+    Strings come from ``dqt.i18n`` so the verdict can be localised via
+    ``DQT_VERDICT_LOCALE`` without touching pipeline logic.
+    """
+    from dqt.i18n import t
+
+    parts: list[str] = []
     psi_max = summary.get("psi_max")
     if isinstance(psi_max, (int, float)) and psi_max == psi_max:
         if psi_max > 0.25:
-            parts.append(f"large drift (PSI peak {psi_max:.2f})")
+            parts.append(t("verdict.psi.large", value=psi_max))
         elif psi_max > 0.1:
-            parts.append(f"some drift (PSI peak {psi_max:.2f})")
+            parts.append(t("verdict.psi.some", value=psi_max))
         else:
-            parts.append(f"distribution stable (PSI peak {psi_max:.2f})")
+            parts.append(t("verdict.psi.stable", value=psi_max))
     stability_min = summary.get("stability_min")
     if isinstance(stability_min, (int, float)) and stability_min == stability_min:
         if stability_min < 0.6:
-            parts.append(f"bins overlap in worst period ({stability_min:.2f})")
+            parts.append(t("verdict.stability.overlap", value=stability_min))
         elif stability_min < 0.8:
-            parts.append(f"bins narrow in worst period ({stability_min:.2f})")
+            parts.append(t("verdict.stability.narrow", value=stability_min))
         else:
-            parts.append("bins well-separated across periods")
+            parts.append(t("verdict.stability.separated"))
     if miss_max > 0.5:
-        parts.append(f"high missingness up to {miss_max:.0%}")
+        parts.append(t("verdict.missing.high", value=miss_max))
     elif miss_max > 0.2:
-        parts.append(f"missingness up to {miss_max:.0%}")
+        parts.append(t("verdict.missing.some", value=miss_max))
     if has_outliers:
-        parts.append("outliers detected")
+        parts.append(t("verdict.outliers"))
     return ". ".join(p[0].upper() + p[1:] for p in parts) + ("." if parts else "")
 
 

@@ -65,6 +65,12 @@ dqt = "dqt.cli:main"
 [tool.setuptools.packages.find]
 include = ["dqt*"]
 
+[tool.setuptools.package-data]
+dqt = [
+  "templates/regulatory/*.j2",
+  "templates/compliance/*.md",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
