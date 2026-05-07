@@ -44,7 +44,7 @@ DQT lives at the intersection of **drift monitoring** ([Evidently](https://githu
 | CLI for CI / cron with exit codes | ✅ | partial | — | — | — |
 | Built-in demo dataset | ✅ | — | — | — | — |
 | LLM / text / image drift | — | ✅ | — | — | — |
-| Performance estimation w/o ground truth | — | — | — | — | ✅ |
+| Performance estimation without ground truth | — | — | — | — | ✅ |
 
 ### What makes DQT different
 
