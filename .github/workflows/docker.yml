@@ -21,7 +21,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           # GHCR requires lowercase image names; gorevds/dqt-ui already is.
           images: ghcr.io/${{ github.repository }}
